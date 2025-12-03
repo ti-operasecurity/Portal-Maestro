@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎼</text></svg>">
+    <title>Maestro - Portal de Aplicações</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Exo+2:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="background-animation">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+        <div class="grid-overlay"></div>
+    </div>
+    
+    <div class="container">
+        <header>
+            <div class="logo-wrapper">
+                <div class="logo-container">
+                    <div class="logo-glow"></div>
+                    <img src="{{ url_for('static', filename='images/logo_opera.png') }}" alt="Maestro Logo" class="logo">
+                </div>
+                <h1 class="titulo">
+                    <span class="titulo-text">
+                        <span class="letter" data-letter="M">M</span>
+                        <span class="letter" data-letter="A">A</span>
+                        <span class="letter" data-letter="E">E</span>
+                        <span class="letter" data-letter="S">S</span>
+                        <span class="letter" data-letter="T">T</span>
+                        <span class="letter" data-letter="R">R</span>
+                        <span class="letter" data-letter="O">O</span>
+                    </span>
+                    <span class="titulo-glow"></span>
+                    <span class="titulo-accent"></span>
+                </h1>
+                <div class="tech-lines">
+                    <div class="tech-line line-1"></div>
+                    <div class="tech-line line-2"></div>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="aplicacoes-grid">
+                {% for app in aplicacoes %}
+                <a href="{{ app.url_final }}" {% if app.target_blank %}target="_blank"{% endif %} class="app-card {% if app.get('tamanho') == 'pequeno' %}app-card-small{% endif %}" style="--card-accent: {{ app.cor }}">
+                    <div class="card-background"></div>
+                    <div class="card-border-glow"></div>
+                    <div class="card-content">
+                        <div class="app-icon-wrapper">
+                            <div class="icon-glow"></div>
+                            <div class="icon-ring"></div>
+                            <div class="app-icon">{{ app.icone }}</div>
+                        </div>
+                        <h3 class="app-nome">{{ app.nome }}</h3>
+                        <div class="app-link">
+                            <span class="link-text">Acessar</span>
+                            <div class="link-arrow">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-shine"></div>
+                    <div class="card-corner corner-tl"></div>
+                    <div class="card-corner corner-tr"></div>
+                    <div class="card-corner corner-bl"></div>
+                    <div class="card-corner corner-br"></div>
+                </a>
+                {% endfor %}
+            </div>
+        </main>
+
+        <footer>
+            <div class="footer-content">
+                <div class="footer-line"></div>
+                <p>&copy; 2025 <span class="footer-brand">MAESTRO</span> - PORTAL DE APLICAÇÕES INTERNAS</p>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# Supabase Configuration
+SUPABASE_URL=https://seu-projeto.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=sua_chave_service_role_key_aqui
+
+# Flask Security
+# Gere uma chave secreta aleatória executando: python -c "import secrets; print(secrets.token_hex(32))"
+SECRET_KEY=sua_chave_secreta_aleatoria_aqui
+SESSION_COOKIE_SECURE=True
+SESSION_COOKIE_HTTPONLY=True
+SESSION_COOKIE_SAMESITE=Lax
+
+# Database (PostgreSQL - se necessário para outras funcionalidades)
+DB_HOST=seu_db_host
+DB_USER=seu_db_user
+DB_PSW=sua_senha_db
+DB_PORT=5432
+DB_NAME=seu_db_name
+

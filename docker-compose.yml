@@ -1,0 +1,67 @@
+services:
+  # Aplicação Flask
+  maestro-portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: maestro-portal
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      # Supabase
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      # Flask
+      - SECRET_KEY=${SECRET_KEY}
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-True}
+      - SESSION_COOKIE_HTTPONLY=${SESSION_COOKIE_HTTPONLY:-True}
+      - SESSION_COOKIE_SAMESITE=${SESSION_COOKIE_SAMESITE:-Lax}
+      # App
+      - PORT=8000
+      - HOST=0.0.0.0
+      - DEBUG=${DEBUG:-False}
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - PYTHONUNBUFFERED=1
+      # Proxy
+      - USE_PROXY=${USE_PROXY:-True}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/login').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - maestro-network
+
+  # Nginx como proxy reverso
+  nginx:
+    image: nginx:alpine
+    container_name: maestro-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx/nginx.conf:/tmp/nginx-https.conf:ro
+      - ./config/nginx/nginx-http.conf:/tmp/nginx-http.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - maestro-portal
+    networks:
+      - maestro-network
+    command: >
+      sh -c "if [ ! -f /etc/letsencrypt/live/maestro.opera.security/fullchain.pem ]; then
+        echo 'Certificado SSL não encontrado. Usando configuração HTTP temporária.';
+        cp /tmp/nginx-http.conf /etc/nginx/conf.d/default.conf;
+      else
+        echo 'Certificado SSL encontrado. Usando configuração HTTPS.';
+        cp /tmp/nginx-https.conf /etc/nginx/conf.d/default.conf;
+      fi &&
+      nginx -g 'daemon off;'"
+
+networks:
+  maestro-network:
+    driver: bridge
