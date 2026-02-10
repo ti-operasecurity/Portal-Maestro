@@ -42,6 +42,9 @@ certbot/
 logs/
 *.log
 
+# Uploads (fotos/arquivos de usuário - não versionar)
+static/uploads/
+
 # IDE
 .vscode/
 .idea/
