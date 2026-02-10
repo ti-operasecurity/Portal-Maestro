@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Dashboards - Maestro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 32px;
+            font-family: 'Rajdhani', 'Exo 2', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #060a18;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(20, 30, 50, 0.8));
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 16px;
+            padding: 20px 24px;
+            box-shadow: 0 14px 38px rgba(0,0,0,0.35);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 22px;
+            letter-spacing: 1px;
+            font-family: 'Orbitron', sans-serif;
+            color: rgba(245, 158, 11, 0.95);
+            text-transform: uppercase;
+        }
+        .header .actions a {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            color: #f8fafc;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .header .actions a:hover {
+            background: rgba(245, 158, 11, 0.25);
+            transform: translateY(-1px);
+        }
+        .apps-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .app-card {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 14px;
+            align-items: center;
+            padding: 18px 20px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(18, 27, 46, 0.8), rgba(12, 18, 32, 0.8));
+            border: 1px solid rgba(245, 158, 11, 0.22);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.28);
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .app-card:hover {
+            border-color: rgba(245, 158, 11, 0.4);
+            box-shadow: 0 12px 30px rgba(245, 158, 11, 0.2);
+            transform: translateY(-2px);
+        }
+        .app-info {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .app-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            display: grid;
+            place-items: center;
+            font-size: 20px;
+        }
+        .app-text {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .app-name {
+            font-family: 'Rajdhani', 'Exo 2', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0;
+            color: #f8fafc;
+            letter-spacing: 0.2px;
+        }
+        .app-desc {
+            margin: 0;
+            color: rgba(226, 232, 240, 0.78);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .app-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .btn-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            background: rgba(245, 158, 11, 0.15);
+            color: #f8fafc;
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.2s ease;
+        }
+        .btn-link:hover {
+            background: rgba(245, 158, 11, 0.25);
+            transform: translateY(-1px);
+        }
+        .empty-card {
+            padding: 26px;
+            border-radius: 14px;
+            background: rgba(30, 41, 59, 0.55);
+            border: 1px dashed rgba(245, 158, 11, 0.3);
+            color: rgba(226, 232, 240, 0.9);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+        }
+        @media (max-width: 768px) {
+            body { padding: 20px; }
+            .app-card {
+                grid-template-columns: 1fr;
+                align-items: flex-start;
+            }
+            .app-actions { justify-content: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Dashboards</h1>
+            <div class="actions">
+                <a href="{{ url_for('index') }}">← Voltar ao portal</a>
+            </div>
+        </div>
+
+        {% if portal_apps and portal_apps|length > 0 %}
+        <div class="apps-stack">
+            {% for app in portal_apps %}
+            {% if app.url %}
+            <a href="{{ app.url }}" class="app-card">
+            {% else %}
+            <div class="app-card">
+            {% endif %}
+                <div class="app-info">
+                    <div class="app-icon">📊</div>
+                    <div class="app-text">
+                        <div class="app-name">{{ app.name }}</div>
+                        <p class="app-desc">{{ app.description or '' }}</p>
+                    </div>
+                </div>
+                {% if app.url %}
+                <div class="app-actions">
+                    <span class="btn-link" style="pointer-events: none;">Abrir</span>
+                </div>
+                {% endif %}
+            {% if app.url %}
+            </a>
+            {% else %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-card">
+            Nenhum dashboard cadastrado nesta aba. Novos dashboards aparecerão aqui conforme forem configurados.
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

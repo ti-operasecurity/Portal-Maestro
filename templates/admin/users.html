@@ -1,0 +1,484 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Gerenciar Usuários - Maestro{% endblock %}
+
+{% block header_title %}Gerenciar Usuários{% endblock %}
+
+{% block extra_css %}
+<style>
+    .users-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+    .users-header h2 {
+        margin: 0;
+        color: rgba(0, 212, 255, 0.9);
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 24px;
+    }
+    .users-table-container {
+        background: rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        border-radius: 15px;
+        overflow-x: auto;
+        box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1);
+    }
+    .user-card {
+        display: none;
+        background: rgba(30, 41, 59, 0.4);
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+    .user-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .user-card-name {
+        font-size: 18px;
+        font-weight: 700;
+        color: #00d4ff;
+        font-family: 'Orbitron', sans-serif;
+    }
+    .users-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .users-search-form {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex: 1;
+        min-width: 200px;
+        max-width: 400px;
+    }
+    .users-search-form input {
+        flex: 1;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid rgba(0, 212, 255, 0.3);
+        background: rgba(10, 14, 39, 0.8);
+        color: #f1f5f9;
+        font-size: 14px;
+    }
+    .users-search-form input::placeholder {
+        color: rgba(241, 245, 249, 0.5);
+    }
+    .users-search-form input:focus {
+        outline: none;
+        border-color: rgba(0, 212, 255, 0.6);
+        box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+    }
+    .users-search-form button {
+        padding: 10px 18px;
+        border-radius: 8px;
+        border: 1px solid rgba(0, 212, 255, 0.4);
+        background: rgba(0, 212, 255, 0.15);
+        color: #00d4ff;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .users-search-form button:hover {
+        background: rgba(0, 212, 255, 0.25);
+    }
+    .pagination-wrap {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-top: 20px;
+        padding: 15px;
+        background: rgba(30, 41, 59, 0.4);
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        border-radius: 10px;
+    }
+    .pagination-info {
+        color: rgba(241, 245, 249, 0.9);
+        font-size: 14px;
+    }
+    .pagination-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .pagination-controls a,
+    .pagination-controls span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        height: 36px;
+        padding: 0 12px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        text-decoration: none;
+        border: 1px solid rgba(0, 212, 255, 0.3);
+        background: rgba(0, 212, 255, 0.1);
+        color: #00d4ff;
+        transition: background 0.2s, border-color 0.2s;
+    }
+    .pagination-controls a:hover {
+        background: rgba(0, 212, 255, 0.2);
+        border-color: rgba(0, 212, 255, 0.5);
+    }
+    .pagination-controls span.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+    .pagination-controls .page-current {
+        background: rgba(0, 212, 255, 0.25);
+        border-color: rgba(0, 212, 255, 0.5);
+    }
+    .user-card-info {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .user-card-row {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    .user-card-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: rgba(0, 212, 255, 0.7);
+        font-weight: 600;
+        font-family: 'Orbitron', sans-serif;
+    }
+    .user-card-value {
+        font-size: 14px;
+        color: #f1f5f9;
+    }
+    .user-card-actions {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid rgba(0, 212, 255, 0.2);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .users-cards-mobile {
+        display: none;
+    }
+    @media (max-width: 768px) {
+        .table {
+            display: none;
+        }
+        .users-cards-mobile {
+            display: block;
+        }
+        .user-card {
+            display: block;
+        }
+        .users-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .users-header h2 {
+            font-size: 20px;
+        }
+        .users-header .btn {
+            width: 100%;
+            text-align: center;
+        }
+    }
+    @media (max-width: 480px) {
+        .users-header h2 {
+            font-size: 18px;
+        }
+        .user-card {
+            padding: 15px;
+        }
+        .user-card-name {
+            font-size: 16px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="users-header">
+    <h2>Lista de Usuários</h2>
+    <a href="{{ url_for('admin_create_user') }}" class="btn btn-primary" style="font-size: 16px; padding: 12px 24px; font-weight: 700;">
+        ➕ Novo Usuário
+    </a>
+</div>
+
+<div class="users-toolbar">
+    <form class="users-search-form" method="get" action="{{ url_for('admin_users') }}">
+        <input type="search" name="q" value="{{ search or '' }}" placeholder="Buscar por usuário ou e-mail" autocomplete="off" />
+        <button type="submit">🔍 Buscar</button>
+        {% if search %}
+        <a href="{{ url_for('admin_users') }}" style="padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); color: #f1f5f9; text-decoration: none; font-size: 14px;">Limpar</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="users-table-container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Usuário</th>
+                <th>Email</th>
+                <th>Grupo</th>
+                <th>Status</th>
+                <th>Último Login</th>
+                <th class="apps-column">Aplicações</th>
+                <th style="text-align: center;">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td style="color: #f1f5f9; font-weight: 600; font-family: 'Orbitron', sans-serif;">{{ user.username or '-' }}</td>
+                <td style="color: rgba(241, 245, 249, 0.9);">{{ user.email or '-' }}</td>
+                <td>
+                    {% if user.group %}
+                        {% if user.group.name == 'administrador' %}
+                            <span class="badge badge-danger">{{ user.group.name|title }}</span>
+                        {% elif user.group.name == 'maestro_full' %}
+                            <span class="badge badge-info">{{ user.group.name|title }}</span>
+                        {% else %}
+                            <span class="badge badge-warning">{{ user.group.name|title }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge" style="background: rgba(107, 114, 128, 0.2); color: rgba(241, 245, 249, 0.7); border: 1px solid rgba(107, 114, 128, 0.3);">Sem grupo</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if user.active %}
+                        <span class="badge badge-success">✓ Ativo</span>
+                    {% else %}
+                        <span class="badge badge-danger">✗ Inativo</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if user.last_login %}
+                        <div style="font-size: 13px; font-weight: 500; color: rgba(241, 245, 249, 0.9); white-space: nowrap;">
+                            📅 {{ user.last_login|format_datetime }}
+                        </div>
+                    {% else %}
+                        <span style="color: rgba(241, 245, 249, 0.6); font-style: italic; font-size: 13px;">— Nunca acessou</span>
+                    {% endif %}
+                </td>
+                <td class="apps-column">
+                    {% if user.group and user.group.name == 'operacao' %}
+                        {% set user_apps = auth_manager.get_user_applications(user.id) %}
+                        {% if user_apps %}
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px; max-width: 200px;">
+                                {% for app in user_apps[:3] %}
+                                <span style="font-size: 11px; padding: 4px 8px; background: rgba(0, 212, 255, 0.2); color: rgba(0, 212, 255, 1); border: 1px solid rgba(0, 212, 255, 0.35); border-radius: 6px; white-space: nowrap; font-weight: 600;">{{ app.display_name or app.name }}</span>
+                                {% endfor %}
+                                {% if user_apps|length > 3 %}
+                                <span style="font-size: 11px; padding: 4px 8px; background: rgba(255, 255, 255, 0.12); color: rgba(241, 245, 249, 0.8); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; font-weight: 600;">+{{ user_apps|length - 3 }}</span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <span style="color: rgba(241, 245, 249, 0.6); font-size: 12px;">Nenhuma</span>
+                        {% endif %}
+                    {% elif user.group and user.group.name == 'maestro_full' %}
+                        <span style="color: rgba(0, 212, 255, 1); font-size: 12px; font-weight: 600;">Todas</span>
+                    {% elif user.group and user.group.name == 'administrador' %}
+                        <span style="color: rgba(0, 255, 136, 1); font-size: 12px; font-weight: 600;">Todas</span>
+                    {% else %}
+                        <span style="color: rgba(241, 245, 249, 0.6); font-size: 12px;">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" class="btn btn-primary btn-sm" title="Editar usuário">
+                            ✏️ Editar
+                        </a>
+                        {% if user.id != session.get('user_id') %}
+                        <form method="POST" action="{{ url_for('admin_reset_password', user_id=user.id) }}" style="display: inline;" onsubmit="return confirm('Tem certeza que deseja resetar a senha deste usuário? Uma nova senha temporária será gerada.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="btn btn-warning btn-sm" title="Resetar senha">
+                                🔑 Resetar
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" style="display: inline;" onsubmit="return confirm('⚠️ ATENÇÃO: Tem certeza que deseja deletar o usuário {{ user.username }}? Esta ação não pode ser desfeita!');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <button type="submit" class="btn btn-danger btn-sm" title="Deletar usuário">
+                                🗑️ Deletar
+                            </button>
+                        </form>
+                        {% else %}
+                        <span style="color: rgba(255, 255, 255, 0.6); font-size: 12px; padding: 6px 12px; background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.3); border-radius: 6px;">Você</span>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 60px; color: rgba(255, 255, 255, 0.6);">
+                    <div style="font-size: 64px; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.5));">👤</div>
+                    <div style="font-size: 20px; font-weight: 700; margin-bottom: 10px; color: #00d4ff; font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 2px;">Nenhum usuário encontrado</div>
+                    <div style="font-size: 14px; color: rgba(255, 255, 255, 0.7);">Crie o primeiro usuário clicando no botão acima</div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Cards para mobile -->
+<div class="users-cards-mobile">
+    {% for user in users %}
+    <div class="user-card">
+        <div class="user-card-header">
+            <div class="user-card-name">{{ user.username or '-' }}</div>
+            <div>
+                {% if user.active %}
+                    <span class="badge badge-success">✓ Ativo</span>
+                {% else %}
+                    <span class="badge badge-danger">✗ Inativo</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="user-card-info">
+            <div class="user-card-row">
+                <div class="user-card-label">Email</div>
+                <div class="user-card-value">{{ user.email or '-' }}</div>
+            </div>
+            <div class="user-card-row">
+                <div class="user-card-label">Grupo</div>
+                <div class="user-card-value">
+                    {% if user.group %}
+                        {% if user.group.name == 'administrador' %}
+                            <span class="badge badge-danger">{{ user.group.name|title }}</span>
+                        {% elif user.group.name == 'maestro_full' %}
+                            <span class="badge badge-info">{{ user.group.name|title }}</span>
+                        {% else %}
+                            <span class="badge badge-warning">{{ user.group.name|title }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge" style="background: rgba(107, 114, 128, 0.2); color: rgba(241, 245, 249, 0.7); border: 1px solid rgba(107, 114, 128, 0.3);">Sem grupo</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="user-card-row">
+                <div class="user-card-label">Último Login</div>
+                <div class="user-card-value">
+                    {% if user.last_login %}
+                        📅 {{ user.last_login|format_datetime }}
+                    {% else %}
+                        <span style="color: rgba(241, 245, 249, 0.6); font-style: italic;">— Nunca acessou</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="user-card-row">
+                <div class="user-card-label">Aplicações</div>
+                <div class="user-card-value">
+                    {% if user.group and user.group.name == 'operacao' %}
+                        {% set user_apps = auth_manager.get_user_applications(user.id) %}
+                        {% if user_apps %}
+                            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                                {% for app in user_apps[:3] %}
+                                <span style="font-size: 11px; padding: 4px 8px; background: rgba(0, 212, 255, 0.2); color: rgba(0, 212, 255, 1); border: 1px solid rgba(0, 212, 255, 0.35); border-radius: 6px; white-space: nowrap; font-weight: 600;">{{ app.display_name or app.name }}</span>
+                                {% endfor %}
+                                {% if user_apps|length > 3 %}
+                                <span style="font-size: 11px; padding: 4px 8px; background: rgba(255, 255, 255, 0.12); color: rgba(241, 245, 249, 0.8); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; font-weight: 600;">+{{ user_apps|length - 3 }}</span>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <span style="color: rgba(241, 245, 249, 0.6); font-size: 12px;">Nenhuma</span>
+                        {% endif %}
+                    {% elif user.group and user.group.name == 'maestro_full' %}
+                        <span style="color: rgba(0, 212, 255, 1); font-size: 12px; font-weight: 600;">Todas</span>
+                    {% elif user.group and user.group.name == 'administrador' %}
+                        <span style="color: rgba(0, 255, 136, 1); font-size: 12px; font-weight: 600;">Todas</span>
+                    {% else %}
+                        <span style="color: rgba(241, 245, 249, 0.6); font-size: 12px;">—</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="user-card-actions">
+            <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" class="btn btn-primary btn-sm" style="width: 100%; text-align: center;">
+                ✏️ Editar
+            </a>
+            {% if user.id != session.get('user_id') %}
+            <form method="POST" action="{{ url_for('admin_reset_password', user_id=user.id) }}" style="display: inline; width: 100%;" onsubmit="return confirm('Tem certeza que deseja resetar a senha deste usuário? Uma nova senha temporária será gerada.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="btn btn-warning btn-sm" style="width: 100%;">
+                    🔑 Resetar
+                </button>
+            </form>
+            <form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" style="display: inline; width: 100%;" onsubmit="return confirm('⚠️ ATENÇÃO: Tem certeza que deseja deletar o usuário {{ user.username }}? Esta ação não pode ser desfeita!');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="btn btn-danger btn-sm" style="width: 100%;">
+                    🗑️ Deletar
+                </button>
+            </form>
+            {% else %}
+            <span style="color: rgba(255, 255, 255, 0.6); font-size: 12px; padding: 6px 12px; background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.3); border-radius: 6px; text-align: center; display: block;">Você</span>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="user-card">
+        <div style="text-align: center; padding: 40px; color: rgba(255, 255, 255, 0.6);">
+            <div style="font-size: 48px; margin-bottom: 15px; filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.5));">👤</div>
+            <div style="font-size: 18px; font-weight: 700; margin-bottom: 10px; color: #00d4ff; font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 2px;">Nenhum usuário encontrado</div>
+            <div style="font-size: 14px; color: rgba(255, 255, 255, 0.7);">Crie o primeiro usuário clicando no botão acima</div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if total is defined and total > 0 %}
+<div class="pagination-wrap">
+    <div class="pagination-info">
+        Mostrando {{ (page - 1) * per_page + 1 }}–{{ (page - 1) * per_page + (users|length) }} de {{ total }} usuário{{ 's' if total != 1 else '' }}{% if search %} (filtro: "{{ search }}"){% endif %}
+    </div>
+    <div class="pagination-controls">
+        {% if page > 1 %}
+        <a href="{{ url_for('admin_users', page=page - 1, q=search if search else none) }}" title="Página anterior">← Anterior</a>
+        {% else %}
+        <span class="disabled">← Anterior</span>
+        {% endif %}
+        <span class="page-current">Página {{ page }} de {{ total_pages }}</span>
+        {% if page < total_pages %}
+        <a href="{{ url_for('admin_users', page=page + 1, q=search if search else none) }}" title="Próxima página">Próxima →</a>
+        {% else %}
+        <span class="disabled">Próxima →</span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if users or (total is defined and total == 0) %}
+<div style="margin-top: 20px; padding: 15px; background: rgba(30, 41, 59, 0.4); border: 1px solid rgba(0, 212, 255, 0.2); border-radius: 8px; color: rgba(241, 245, 249, 0.9); font-size: 13px;">
+    {% if search %}
+    <strong>Resultado da busca:</strong> {{ total }} usuário{{ 's' if total != 1 else '' }} encontrado{{ 's' if total != 1 else '' }}.
+    {% else %}
+    <strong>Total de usuários:</strong> {{ total }} | 
+    <strong>Ativos:</strong> {{ users|selectattr('active')|list|length }} (nesta página) | 
+    <strong>Inativos:</strong> {{ users|rejectattr('active')|list|length }} (nesta página)
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

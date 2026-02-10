@@ -1,0 +1,57 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Criar Usuário - Maestro{% endblock %}
+
+{% block header_title %}Criar Novo Usuário{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('admin_users') }}" style="display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; color: rgba(0, 212, 255, 0.9); text-decoration: none; font-weight: 600; padding: 10px 20px; background: rgba(0, 212, 255, 0.08); border: 1px solid rgba(0, 212, 255, 0.2); border-radius: 8px; transition: all 0.3s;" onmouseover="this.style.background='rgba(0, 212, 255, 0.15)'; this.style.borderColor='rgba(0, 212, 255, 0.3)'; this.style.transform='translateX(-3px)'" onmouseout="this.style.background='rgba(0, 212, 255, 0.08)'; this.style.borderColor='rgba(0, 212, 255, 0.2)'; this.style.transform='translateX(0)'">
+    ← Voltar à Lista
+</a>
+
+<div class="card">
+    <h3 style="color: rgba(0, 212, 255, 0.9); font-family: 'Orbitron', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid rgba(0, 212, 255, 0.2);">Informações do Novo Usuário</h3>
+    
+    <form method="POST" action="{{ url_for('admin_create_user') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <div class="form-group">
+            <label for="username">Nome de Usuário *</label>
+            <input type="text" id="username" name="username" required minlength="3" maxlength="50" pattern="[a-zA-Z0-9._-]+" title="Apenas letras, números, ponto, underscore e hífen" placeholder="exemplo.usuario">
+            <small>Mínimo 3 caracteres. Apenas letras, números, ponto (.), underscore (_) e hífen (-)</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Senha *</label>
+            <input type="password" id="password" name="password" required minlength="6" maxlength="100" placeholder="Mínimo 6 caracteres">
+            <small>Mínimo de 6 caracteres. Recomenda-se usar uma senha forte</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="usuario@exemplo.com">
+            <small>Email de contato do usuário (opcional)</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="group_id">Grupo de Acesso</label>
+            <select id="group_id" name="group_id">
+                <option value="">Sem grupo (sem acesso às aplicações)</option>
+                {% for group in groups %}
+                <option value="{{ group.id }}">{{ group.name|title }} - {{ group.description }}</option>
+                {% endfor %}
+            </select>
+            <small>
+                <strong>Administrador:</strong> Acesso total ao sistema<br>
+                <strong>Maestro Full:</strong> Acesso a todas as aplicações<br>
+                <strong>Operação:</strong> Acesso apenas a aplicações específicas (configure após criar)
+            </small>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
+            <button type="submit" class="btn btn-primary">✅ Criar Usuário</button>
+            <a href="{{ url_for('admin_users') }}" class="btn btn-secondary" style="margin-left: 10px;">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -208,6 +208,44 @@ check_security_dependencies() {
     info "   ✓ bleach (Sanitização HTML)"
 }
 
+# Verificar conectividade com Docker Hub
+check_docker_hub_connectivity() {
+    log "Verificando conectividade com Docker Hub..."
+    
+    # Tentar ping no registry do Docker
+    if timeout 10 curl -s -o /dev/null -w "%{http_code}" https://registry-1.docker.io/v2/ > /dev/null 2>&1; then
+        success "✅ Conectividade com Docker Hub OK"
+        return 0
+    else
+        warning "⚠️  Não foi possível conectar ao Docker Hub"
+        warning "   Isso pode ser causado por:"
+        warning "   - Problema de internet/conectividade"
+        warning "   - Firewall bloqueando acesso ao Docker Hub"
+        warning "   - DNS não resolvendo registry-1.docker.io"
+        return 1
+    fi
+}
+
+# Verificar se imagem base já existe localmente
+check_local_base_image() {
+    log "Verificando se imagem base já existe localmente..."
+    
+    # Verificar se python:3.11-slim-bookworm existe
+    if docker images | grep -q "python.*3.11.*slim.*bookworm"; then
+        info "✅ Imagem base python:3.11-slim-bookworm encontrada localmente"
+        return 0
+    fi
+    
+    # Verificar outras versões
+    if docker images | grep -q "python.*3.11.*slim"; then
+        info "✅ Imagem base python:3.11-slim encontrada localmente"
+        return 0
+    fi
+    
+    warning "⚠️  Imagem base não encontrada localmente"
+    return 1
+}
+
 # Construir imagem Docker
 build_image() {
     log "Construindo imagem Docker..."
@@ -233,11 +271,78 @@ build_image() {
         exit 1
     fi
     
+    # Verificar conectividade com Docker Hub
+    if ! check_docker_hub_connectivity; then
+        # Se não conseguir conectar, verificar se imagem local existe
+        if check_local_base_image; then
+            info "📦 Usando imagem base local (sem precisar baixar do Docker Hub)"
+        else
+            warning "⚠️  Tentando usar Dockerfile alternativo..."
+            
+            # Verificar se existe Dockerfile alternativo
+            if [ -f "Dockerfile.rapido" ]; then
+                info "📦 Usando Dockerfile.rapido (python:3.11-slim - pode estar em cache)"
+                # Backup do Dockerfile original
+                cp Dockerfile Dockerfile.backup
+                cp Dockerfile.rapido Dockerfile
+                info "   (Dockerfile original salvo como Dockerfile.backup)"
+            elif [ -f "Dockerfile.alternativo" ]; then
+                info "📦 Usando Dockerfile.alternativo (python:3.11-slim-bullseye)"
+                cp Dockerfile Dockerfile.backup
+                cp Dockerfile.alternativo Dockerfile
+                info "   (Dockerfile original salvo como Dockerfile.backup)"
+            else
+                error "❌ Não foi possível conectar ao Docker Hub e nenhuma imagem local encontrada"
+                error "   Soluções possíveis:"
+                error "   1. Verificar conectividade com internet"
+                error "   2. Verificar se firewall está bloqueando Docker Hub"
+                error "   3. Baixar imagem manualmente: docker pull python:3.11-slim-bookworm"
+                error "   4. Usar proxy/mirror do Docker Hub se disponível"
+                exit 1
+            fi
+        fi
+    fi
+    
     info "Construindo imagem com Docker Compose..."
     info "🔒 Incluindo melhorias de segurança (CSRF, Rate Limiting, Validação)"
     
-    # Construir imagem usando Docker Compose
-    if $COMPOSE_CMD -f "$COMPOSE_FILE" build maestro-portal; then
+    # Configurar timeout maior e retry para build
+    export DOCKER_BUILDKIT=1
+    export COMPOSE_HTTP_TIMEOUT=300
+    
+    # Construir imagem usando Docker Compose com retry
+    local build_success=false
+    for attempt in 1 2 3; do
+        if [ $attempt -gt 1 ]; then
+            info "🔄 Tentativa $attempt de 3..."
+            sleep 10
+        fi
+        
+        if $COMPOSE_CMD -f "$COMPOSE_FILE" build --no-cache=false maestro-portal 2>&1 | tee /tmp/docker-build.log; then
+            build_success=true
+            break
+        else
+            # Verificar se o erro é de conectividade
+            if grep -q "failed to resolve\|timeout\|i/o timeout" /tmp/docker-build.log; then
+                warning "⚠️  Erro de conectividade detectado na tentativa $attempt"
+                if [ $attempt -lt 3 ]; then
+                    info "   Aguardando antes de tentar novamente..."
+                    sleep 30
+                fi
+            else
+                # Outro tipo de erro, não adianta tentar novamente
+                break
+            fi
+        fi
+    done
+    
+    # Restaurar Dockerfile original se foi alterado
+    if [ -f "Dockerfile.backup" ]; then
+        mv Dockerfile.backup Dockerfile
+        info "✅ Dockerfile original restaurado"
+    fi
+    
+    if [ "$build_success" = true ]; then
         success "✅ Imagem construída com sucesso!"
         echo ""
         info "📦 Imagens criadas:"
@@ -251,7 +356,14 @@ build_image() {
         info "   ✓ Logs de segurança"
         info "   ✓ Proteção SSRF no proxy"
     else
-        error "❌ Falha ao construir a imagem"
+        error "❌ Falha ao construir a imagem após 3 tentativas"
+        error "   Logs do build salvos em: /tmp/docker-build.log"
+        error ""
+        error "   Soluções possíveis:"
+        error "   1. Verificar conectividade: curl -I https://registry-1.docker.io/v2/"
+        error "   2. Baixar imagem manualmente: docker pull python:3.11-slim-bookworm"
+        error "   3. Verificar DNS: nslookup registry-1.docker.io"
+        error "   4. Verificar firewall/proxy corporativo"
         exit 1
     fi
 }
@@ -530,8 +642,13 @@ start_containers() {
     mkdir -p ./certbot/www
     
     # Iniciar containers com Docker Compose
+    # Usar --build apenas se BUILD_ON_START estiver definido
     log "Iniciando containers com Docker Compose..."
-    $COMPOSE_CMD -f "$COMPOSE_FILE" up -d --build
+    if [ "${BUILD_ON_START:-false}" = "true" ]; then
+        $COMPOSE_CMD -f "$COMPOSE_FILE" up -d --build
+    else
+        $COMPOSE_CMD -f "$COMPOSE_FILE" up -d
+    fi
     
     if [ $? -eq 0 ]; then
         success "Containers iniciados com sucesso!"
@@ -797,6 +914,7 @@ show_help() {
     echo "  --status        Mostra status dos containers"
     echo "  --logs          Mostra logs dos containers"
     echo "  --full-deploy   Deploy completo: para, reconstrói e inicia tudo"
+    echo "  --quick-restart Reinicia containers sem rebuild (rápido para alterações no código)"
     echo "  --setup-ssl     Configura SSL/HTTPS com Let's Encrypt"
     echo "  --check-ports   Verifica configuração de portas no firewall"
     echo "  --check-deps    Verifica dependências de segurança"
@@ -804,7 +922,9 @@ show_help() {
     echo "  --help          Mostra esta ajuda"
     echo ""
     echo "Exemplos:"
-    echo "  $0 --full-deploy    # Deploy completo (Flask + Nginx)"
+    echo "  $0 --full-deploy    # Deploy completo com rebuild (Flask + Nginx)"
+    echo "  $0 --quick-restart  # Reinicia sem rebuild (rápido para alterações no código)"
+    echo "  $0 --restart        # Reinicia containers (sem rebuild)"
     echo "  $0 --setup-ssl      # Configurar HTTPS após deploy"
     echo "  $0 --start          # Iniciar containers"
     echo "  $0 --status         # Ver status"
@@ -878,11 +998,14 @@ case "${1:-}" in
         check_docker
         stop_containers
         ;;
-    --restart)
+    --restart|--quick-restart)
         check_docker
         check_docker_compose
-        stop_containers
-        start_containers
+        log "Reiniciando containers (sem rebuild - código atualizado via volumes)..."
+        $COMPOSE_CMD -f "$COMPOSE_FILE" restart
+        success "Containers reiniciados!"
+        info "💡 Para alterações no código Python, use --restart (rápido)"
+        info "💡 Para alterações no Dockerfile/requirements.txt, use --full-deploy"
         ;;
     --status)
         show_status
@@ -891,6 +1014,7 @@ case "${1:-}" in
         show_logs
         ;;
     --full-deploy)
+        export BUILD_ON_START=true
         full_deploy
         ;;
     --setup-ssl)

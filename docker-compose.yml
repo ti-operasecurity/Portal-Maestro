@@ -31,6 +31,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    volumes:
+      # Montar código Python para atualizações sem rebuild
+      - ./app.py:/app/app.py:ro
+      - ./auth.py:/app/auth.py:ro
+      - ./security.py:/app/security.py:ro
+      - ./http_pool.py:/app/http_pool.py:ro
+      - ./monitoring.py:/app/monitoring.py:ro
+      - ./templates:/app/templates:ro
+      - ./static:/app/static:ro
     networks:
       - maestro-network
 

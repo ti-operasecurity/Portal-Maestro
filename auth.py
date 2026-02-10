@@ -10,6 +10,12 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+class ServiceUnavailableError(Exception):
+    """Erro quando o Supabase/PostgREST está temporariamente indisponível (ex.: 503, PGRST002)."""
+    pass
+
+
 class AuthManager:
     """Gerenciador de autenticação com Supabase"""
     
@@ -124,6 +130,10 @@ class AuthManager:
                 logging.error("⚠️  Erro de autenticação com Supabase - verifique SUPABASE_SERVICE_ROLE_KEY no .env")
                 return {'success': False, 'message': 'Erro de configuração. Entre em contato com o administrador.'}
             
+            # Supabase temporariamente indisponível (503 / PGRST002)
+            if '503' in error_msg or 'PGRST002' in error_msg or 'schema cache' in error_msg.lower():
+                return {'success': False, 'message': 'Serviço temporariamente indisponível. Tente novamente em alguns instantes.'}
+            
             return {'success': False, 'message': 'Erro ao processar autenticação. Tente novamente.'}
     
     def get_user_by_id(self, user_id: int) -> dict:
@@ -137,6 +147,353 @@ class AuthManager:
             return None
         except Exception:
             return None
+    
+    def get_user_group(self, user_id: int) -> dict:
+        """Busca grupo do usuário"""
+        try:
+            result = self.supabase.table('maestro_users').select(
+                'id, username, group_id, maestro_user_groups(id, name, description)'
+            ).eq('id', user_id).execute()
+            
+            if result.data and result.data[0].get('maestro_user_groups'):
+                group_data = result.data[0]['maestro_user_groups']
+                if isinstance(group_data, list) and len(group_data) > 0:
+                    return group_data[0]
+                elif isinstance(group_data, dict):
+                    return group_data
+            return None
+        except Exception as e:
+            import logging
+            logging.error(f"Erro ao buscar grupo do usuário: {str(e)}")
+            return None
+    
+    def is_admin(self, user_id: int) -> bool:
+        """Verifica se usuário é administrador"""
+        group = self.get_user_group(user_id)
+        return group and group.get('name') == 'administrador'
+    
+    def is_maestro_full(self, user_id: int) -> bool:
+        """Verifica se usuário tem acesso completo (Maestro Full)"""
+        group = self.get_user_group(user_id)
+        return group and group.get('name') == 'maestro_full'
+    
+    def has_portal_tab_access(self, user_id: int) -> bool:
+        """Verifica se usuário pode acessar a nova aba 'Aplicações' do portal"""
+        # Apenas Administrador tem acesso automático; Maestro Full usa o flag no usuário
+        if self.is_admin(user_id):
+            return True
+        user = self.get_user_by_id(user_id)
+        return bool(user and user.get('portal_tab_access'))
+
+    def get_portal_apps(self, active_only: bool = True) -> list:
+        """Retorna as aplicações cadastradas na aba Aplicações (maestro_portal_applications)."""
+        try:
+            query = self.supabase.table('maestro_portal_applications').select('*')
+            if active_only:
+                query = query.eq('active', True)
+            result = query.order('name').execute()
+            return result.data or []
+        except Exception as e:
+            import logging
+            logging.error(f"Erro ao buscar portal apps: {str(e)}")
+            return []
+
+    def get_portal_dashboards(self, active_only: bool = True) -> list:
+        """Retorna os dashboards cadastrados na aba Dashboards (maestro_portal_dashboards)."""
+        try:
+            query = self.supabase.table('maestro_portal_dashboards').select('*')
+            if active_only:
+                query = query.eq('active', True)
+            result = query.order('name').execute()
+            return result.data or []
+        except Exception as e:
+            import logging
+            logging.error(f"Erro ao buscar portal dashboards: {str(e)}")
+            return []
+
+    def get_user_portal_apps(self, user_id: int) -> list:
+        """Retorna as aplicações da nova aba permitidas para o usuário"""
+        try:
+            result = self.supabase.table('maestro_user_portal_app_access').select(
+                'portal_app_id, maestro_portal_applications(id, key, name, description, active)'
+            ).eq('user_id', user_id).execute()
+            apps = []
+            for item in result.data or []:
+                app = item.get('maestro_portal_applications')
+                if isinstance(app, list) and app:
+                    app = app[0]
+                if isinstance(app, dict):
+                    apps.append(app)
+            return apps
+        except Exception as e:
+            import logging
+            logging.error(f"Erro ao buscar portal apps do usuário: {str(e)}")
+            return []
+
+    def set_user_portal_apps(self, user_id: int, portal_app_ids: list, granted_by: int = None) -> bool:
+        """Define (substitui) as aplicações da nova aba permitidas para o usuário"""
+        try:
+            # Limpa permissões existentes
+            self.supabase.table('maestro_user_portal_app_access').delete().eq('user_id', user_id).execute()
+            # Insere novas permissões
+            if portal_app_ids:
+                rows = [{
+                    'user_id': user_id,
+                    'portal_app_id': app_id,
+                    'granted_by': granted_by
+                } for app_id in portal_app_ids]
+                self.supabase.table('maestro_user_portal_app_access').insert(rows).execute()
+            return True
+        except Exception as e:
+            import logging
+            logging.error(f"Erro ao definir portal apps do usuário: {str(e)}")
+            return False
+
+    def update_portal_tab_access(self, user_id: int, enabled: bool) -> bool:
+        """Atualiza flag de acesso à aba de Aplicações"""
+        try:
+            self.supabase.table('maestro_users').update({'portal_tab_access': enabled}).eq('id', user_id).execute()
+            return True
+        except Exception as e:
+            import logging
+            logging.error(f"Erro ao atualizar portal_tab_access: {str(e)}")
+            return False
+
+    def has_application_access(self, user_id: int, url_proxy: str) -> bool:
+        """Verifica se usuário tem acesso a uma aplicação específica"""
+        try:
+            # Administrador e Maestro Full têm acesso a tudo
+            if self.is_admin(user_id) or self.is_maestro_full(user_id):
+                return True
+            
+            # Para grupo Operação, verificar permissões específicas
+            # Extrair o nome da aplicação do url_proxy
+            # url_proxy pode vir como '/proxy/painel-monitoracao' ou 'painel-monitoracao'
+            app_key = url_proxy
+            if app_key.startswith('/proxy/'):
+                app_key = app_key.replace('/proxy/', '')
+            elif app_key.startswith('proxy/'):
+                app_key = app_key.replace('proxy/', '')
+            
+            # 1) Tentar nas aplicações principais
+            app_result = self.supabase.table('maestro_applications').select('id').eq('url_proxy', app_key).eq('active', True).execute()
+            if app_result.data:
+                app_id = app_result.data[0]['id']
+                access_result = self.supabase.table('maestro_user_application_access').select('id').eq('user_id', user_id).eq('application_id', app_id).execute()
+                return len(access_result.data) > 0
+
+            # 2) Tentar na tabela de Dashboards (aba Dashboards: quem tem portal_tab_access vê todos)
+            dashboard = self.supabase.table('maestro_portal_dashboards').select('id').eq('key', app_key).eq('active', True).execute()
+            if dashboard.data:
+                user = self.get_user_by_id(user_id)
+                return bool(user and user.get('portal_tab_access'))
+
+            # 3) Tentar nas aplicações da aba Aplicações (portal)
+            portal_app = self.supabase.table('maestro_portal_applications').select('id').eq('key', app_key).eq('active', True).execute()
+            if portal_app.data:
+                portal_app_id = portal_app.data[0]['id']
+                user = self.get_user_by_id(user_id)
+                portal_enabled = bool(user and user.get('portal_tab_access'))
+                if not portal_enabled:
+                    return False
+                access_result = self.supabase.table('maestro_user_portal_app_access').select('id').eq('user_id', user_id).eq('portal_app_id', portal_app_id).execute()
+                return len(access_result.data) > 0
+
+            import logging
+            logging.warning(f"Aplicação não encontrada para app_key/url_proxy: {app_key}")
+            return False
+        except Exception as e:
+            import logging
+            error_msg = str(e)
+            logging.error(f"Erro ao verificar acesso à aplicação: {error_msg}")
+            # Supabase/PostgREST indisponível: permitir que o chamador exiba mensagem amigável
+            if '503' in error_msg or 'PGRST002' in error_msg or 'schema cache' in error_msg.lower():
+                raise ServiceUnavailableError("Supabase temporariamente indisponível") from e
+            import traceback
+            logging.error(traceback.format_exc())
+            return False
+    
+    def get_user_permissions(self, user_id: int) -> dict:
+        """Retorna todas as permissões do usuário"""
+        try:
+            user = self.get_user_by_id(user_id)
+            if not user:
+                return {'is_admin': False, 'is_maestro_full': False, 'applications': []}
+            
+            group = self.get_user_group(user_id)
+            group_name = group.get('name') if group else None
+            
+            is_admin = group_name == 'administrador'
+            is_maestro_full = group_name == 'maestro_full'
+            
+            applications = []
+            if not is_admin and not is_maestro_full:
+                # Para grupo Operação, buscar aplicações permitidas
+                result = self.supabase.table('maestro_user_application_access').select(
+                    'application_id, maestro_applications(id, name, url_proxy, display_name, icon, color)'
+                ).eq('user_id', user_id).execute()
+                
+                for item in result.data:
+                    if item.get('maestro_applications'):
+                        app = item['maestro_applications']
+                        if isinstance(app, list) and len(app) > 0:
+                            app = app[0]
+                        applications.append({
+                            'id': app.get('id'),
+                            'url_proxy': app.get('url_proxy'),
+                            'name': app.get('name'),
+                            'display_name': app.get('display_name'),
+                            'icon': app.get('icon'),
+                            'color': app.get('color')
+                        })
+            
+            return {
+                'is_admin': is_admin,
+                'is_maestro_full': is_maestro_full,
+                'group_name': group_name,
+                'group_id': group.get('id') if group else None,
+                'applications': applications,
+                'portal_tab_access': True if is_admin else bool(user.get('portal_tab_access', False)),
+                'portal_apps': self.get_user_portal_apps(user_id) if not (is_admin or is_maestro_full) else self.get_portal_apps(active_only=True)
+            }
+        except Exception as e:
+            import logging
+            logging.error(f"Erro ao buscar permissões: {str(e)}")
+            return {'is_admin': False, 'is_maestro_full': False, 'applications': [], 'portal_tab_access': False, 'portal_apps': []}
+    
+    def get_all_users(self) -> list:
+        """Busca todos os usuários com informações de grupo"""
+        try:
+            result = self.supabase.table('maestro_users').select(
+                'id, username, email, active, created_at, last_login, group_id, maestro_user_groups(id, name, description)'
+            ).order('username', desc=False).execute()
+            
+            users = []
+            for user in result.data:
+                # Garantir que campos básicos existam
+                if not isinstance(user, dict):
+                    continue
+                
+                # Remover password_hash se existir
+                user.pop('password_hash', None)
+                
+                # Processar grupo
+                group_data = user.get('maestro_user_groups')
+                if group_data:
+                    if isinstance(group_data, list) and len(group_data) > 0:
+                        user['group'] = group_data[0]
+                    elif isinstance(group_data, dict):
+                        user['group'] = group_data
+                else:
+                    user['group'] = None
+                
+                # Garantir que campos essenciais existam
+                user.setdefault('id', None)
+                user.setdefault('username', '')
+                user.setdefault('email', None)
+                user.setdefault('active', True)
+                user.setdefault('last_login', None)
+                
+                users.append(user)
+            
+            # Ordenação adicional case-insensitive no Python para garantir
+            users.sort(key=lambda x: (x.get('username') or '').lower())
+            
+            return users
+        except Exception as e:
+            import logging
+            logging.error(f"Erro ao buscar usuários: {str(e)}")
+            import traceback
+            logging.error(traceback.format_exc())
+            return []
+
+    def get_users_paginated(self, search_term: str = None, page: int = 1, per_page: int = 20) -> tuple:
+        """Retorna (lista de usuários da página, total de usuários) com busca opcional e paginação."""
+        users = self.get_all_users()
+        if search_term:
+            term = (search_term or '').strip().lower()
+            if term:
+                users = [
+                    u for u in users
+                    if term in (u.get('username') or '').lower() or term in (u.get('email') or '').lower()
+                ]
+        total = len(users)
+        start = (page - 1) * per_page
+        end = start + per_page
+        page_users = users[start:end]
+        return (page_users, total)
+    
+    def get_all_groups(self) -> list:
+        """Busca todos os grupos"""
+        try:
+            result = self.supabase.table('maestro_user_groups').select('*').order('name').execute()
+            return result.data
+        except Exception:
+            return []
+    
+    def get_all_applications(self) -> list:
+        """Busca todas as aplicações"""
+        try:
+            result = self.supabase.table('maestro_applications').select('*').eq('active', True).order('display_name').execute()
+            return result.data
+        except Exception:
+            return []
+    
+    def update_user_group(self, user_id: int, group_id: int) -> dict:
+        """Atualiza grupo do usuário"""
+        try:
+            result = self.supabase.table('maestro_users').update({'group_id': group_id}).eq('id', user_id).execute()
+            if result.data:
+                return {'success': True, 'message': 'Grupo atualizado com sucesso'}
+            return {'success': False, 'message': 'Erro ao atualizar grupo'}
+        except Exception as e:
+            return {'success': False, 'message': f'Erro: {str(e)}'}
+    
+    def grant_application_access(self, user_id: int, application_id: int, granted_by: int = None) -> dict:
+        """Concede acesso a uma aplicação para um usuário"""
+        try:
+            data = {
+                'user_id': user_id,
+                'application_id': application_id
+            }
+            if granted_by:
+                data['granted_by'] = granted_by
+            
+            result = self.supabase.table('maestro_user_application_access').insert(data).execute()
+            if result.data:
+                return {'success': True, 'message': 'Acesso concedido com sucesso'}
+            return {'success': False, 'message': 'Erro ao conceder acesso'}
+        except Exception as e:
+            error_msg = str(e)
+            if 'duplicate' in error_msg.lower() or 'unique' in error_msg.lower():
+                return {'success': False, 'message': 'Usuário já possui acesso a esta aplicação'}
+            return {'success': False, 'message': f'Erro: {str(e)}'}
+    
+    def revoke_application_access(self, user_id: int, application_id: int) -> dict:
+        """Revoga acesso a uma aplicação de um usuário"""
+        try:
+            result = self.supabase.table('maestro_user_application_access').delete().eq('user_id', user_id).eq('application_id', application_id).execute()
+            return {'success': True, 'message': 'Acesso revogado com sucesso'}
+        except Exception as e:
+            return {'success': False, 'message': f'Erro: {str(e)}'}
+    
+    def get_user_applications(self, user_id: int) -> list:
+        """Busca aplicações permitidas para um usuário"""
+        try:
+            result = self.supabase.table('maestro_user_application_access').select(
+                'application_id, maestro_applications(*)'
+            ).eq('user_id', user_id).execute()
+            
+            applications = []
+            for item in result.data:
+                if item.get('maestro_applications'):
+                    app = item['maestro_applications']
+                    if isinstance(app, list) and len(app) > 0:
+                        app = app[0]
+                    applications.append(app)
+            return applications
+        except Exception:
+            return []
 
 # Instância global do gerenciador de autenticação
 auth_manager = AuthManager()
@@ -161,6 +518,18 @@ def login_required(f):
         if 'user_id' not in session:
             flash('Você precisa fazer login para acessar esta página.', 'warning')
             return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    """Decorator para proteger rotas que requerem permissão de administrador"""
+    @wraps(f)
+    @login_required
+    def decorated_function(*args, **kwargs):
+        user_id = session.get('user_id')
+        if not user_id or not auth_manager.is_admin(user_id):
+            flash('Acesso negado. Você precisa de permissão de administrador.', 'error')
+            return redirect(url_for('index'))
         return f(*args, **kwargs)
     return decorated_function
 

@@ -1,0 +1,602 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Editar Usuário - Maestro{% endblock %}
+
+{% block header_title %}Editar Usuário: {{ user.username }}{% endblock %}
+
+{% block content %}
+<style>
+.js-show { display: block !important; }
+.js-hide { display: none !important; }
+</style>
+<a href="{{ url_for('admin_users') }}" style="display: inline-flex; align-items: center; gap: 8px; margin-bottom: 20px; color: rgba(0, 212, 255, 0.9); text-decoration: none; font-weight: 600; padding: 10px 20px; background: rgba(0, 212, 255, 0.08); border: 1px solid rgba(0, 212, 255, 0.2); border-radius: 8px; transition: all 0.3s;" onmouseover="this.style.background='rgba(0, 212, 255, 0.15)'; this.style.borderColor='rgba(0, 212, 255, 0.3)'; this.style.transform='translateX(-3px)'" onmouseout="this.style.background='rgba(0, 212, 255, 0.08)'; this.style.borderColor='rgba(0, 212, 255, 0.2)'; this.style.transform='translateX(0)'">
+    ← Voltar à Lista
+</a>
+
+<div class="card">
+    <h3 style="color: rgba(0, 212, 255, 0.9); font-family: 'Orbitron', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid rgba(0, 212, 255, 0.2);">Informações Básicas</h3>
+    
+    <form method="POST" action="{{ url_for('admin_edit_user', user_id=user.id) }}" id="edit-user-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        
+        <div class="form-group">
+            <label for="username">Nome de Usuário</label>
+            <input type="text" id="username" name="username" value="{{ user.username }}" disabled style="background: rgba(0, 0, 0, 0.15); color: rgba(224, 224, 224, 0.6); border-color: rgba(0, 212, 255, 0.1); cursor: not-allowed;">
+            <small>O nome de usuário não pode ser alterado após a criação</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="{{ user.email or '' }}" placeholder="usuario@exemplo.com">
+            <small>Email de contato do usuário (opcional)</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="group_id">Grupo de Acesso</label>
+            <select id="group_id" name="group_id">
+                <option value="">Sem grupo</option>
+                {% for group in groups %}
+                <option value="{{ group.id }}" {% if user.group_id == group.id %}selected{% endif %} data-group-name="{{ group.name }}">
+                    {{ group.name|title }} - {{ group.description }}
+                </option>
+                {% endfor %}
+            </select>
+            <small>
+                <strong>Administrador:</strong> Acesso total ao sistema<br>
+                <strong>Maestro Full:</strong> Acesso a todas as aplicações<br>
+                <strong>Operação:</strong> Acesso apenas a aplicações específicas (selecione abaixo)
+            </small>
+        </div>
+        
+        <div class="checkbox-group">
+            <input type="checkbox" id="active" name="active" value="1" {% if user.active %}checked{% endif %}>
+            <label for="active">Usuário Ativo</label>
+            <span class="help-text">Usuários inativos não conseguem fazer login no sistema</span>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid rgba(0, 212, 255, 0.3);">
+            <h3 style="color: rgba(0, 212, 255, 0.9); font-family: 'Orbitron', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid rgba(0, 212, 255, 0.2);">Gerenciamento de Senha</h3>
+            
+            <div class="form-group">
+                <label for="new_password">Nova Senha</label>
+                <input type="password" id="new_password" name="new_password" minlength="6" maxlength="100" placeholder="Deixe em branco para não alterar">
+                <small>Mínimo de 6 caracteres. Deixe em branco para manter a senha atual</small>
+            </div>
+            
+            <div style="margin-top: 20px; padding: 20px; background: rgba(255, 170, 0, 0.08); backdrop-filter: blur(10px); border-radius: 12px; border: 1px solid rgba(255, 170, 0, 0.25);">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                    <span style="font-size: 28px;">🔑</span>
+                    <h4 style="margin: 0; color: rgba(255, 170, 0, 0.9); font-weight: 700; font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 1px; font-size: 16px;">Resetar Senha</h4>
+                </div>
+                <p style="margin: 0 0 20px 0; color: rgba(224, 224, 224, 0.7); font-size: 13px; line-height: 1.6;">
+                    Gera uma nova senha temporária aleatória de 12 caracteres para este usuário. A senha será exibida em um modal seguro após a confirmação.
+                </p>
+                <button type="button" class="btn btn-warning" id="btn-reset-password" data-user-id="{{ user.id }}" data-username="{{ user.username|e }}" style="width: 100%; font-size: 15px; padding: 12px; font-weight: 600;">
+                    🔄 Gerar Nova Senha Temporária
+                </button>
+            </div>
+        </div>
+        
+        {% set user_group = groups|selectattr('id', 'equalto', user.group_id)|first if user.group_id else None %}
+{% set is_admin_group = user_group and user_group.name == 'administrador' %}
+{% set is_full_group = user_group and user_group.name == 'maestro_full' %}
+{% set portal_access_checked = portal_tab_access or is_admin_group %}
+        <div id="applications-section" class="{% if user_group and user_group.name == 'operacao' %}js-show{% else %}js-hide{% endif %}" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid rgba(0, 212, 255, 0.3);">
+            <h3 style="color: rgba(0, 212, 255, 0.9); font-family: 'Orbitron', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(0, 212, 255, 0.2);">📱 Aplicações Permitidas (Grupo: Operação)</h3>
+            <p style="color: rgba(255, 255, 255, 0.7); margin-bottom: 20px; font-size: 14px;">
+                Selecione as aplicações que este usuário pode acessar. Apenas as aplicações marcadas estarão disponíveis para este usuário.
+            </p>
+            
+            <div class="application-grid" id="applications-grid">
+                {% for app in applications %}
+                <div class="application-card {% if app.id in user_app_ids %}selected{% endif %}">
+                    <label>
+                        <input type="checkbox" name="applications" value="{{ app.id }}" {% if app.id in user_app_ids %}checked{% endif %}>
+                        <div>
+                            <div class="app-name">
+                                <span class="app-icon">{{ app.icon or '📱' }}</span>
+                                {{ app.display_name }}
+                            </div>
+                            <div class="app-desc">{{ app.name }}</div>
+                        </div>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid rgba(0, 212, 255, 0.3);">
+            <h3 style="color: rgba(0, 212, 255, 0.9); font-family: 'Orbitron', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(0, 212, 255, 0.2);">🗂️ Aba Aplicações (Portal)</h3>
+            <p style="color: rgba(241, 245, 249, 0.8); margin-bottom: 12px; font-size: 14px;">
+                Controle quem pode ver a aba Aplicações do portal. Apenas o grupo Administrador tem acesso fixo; Maestro Full pode ter esta permissão desmarcada.
+            </p>
+
+            <input type="hidden" name="portal_tab_access" value="0">
+            <div class="checkbox-group" style="margin-bottom: 18px;">
+                <input type="checkbox" id="portal_tab_access" name="portal_tab_access" value="1" {% if portal_access_checked %}checked{% endif %} {% if is_admin_group %}disabled{% endif %}>
+                <label for="portal_tab_access">Permitir acesso à aba Aplicações</label>
+                <span class="help-text">Habilita a aba e as aplicações cadastradas nela para este usuário.</span>
+                {% if is_admin_group %}
+                <input type="hidden" name="portal_tab_access" value="1">
+                {% endif %}
+            </div>
+
+            <div id="portal-apps-section" class="{% if portal_access_checked %}js-show{% else %}js-hide{% endif %}">
+                {% if portal_apps and portal_apps|length > 0 %}
+                <p style="color: rgba(241, 245, 249, 0.75); margin-bottom: 15px; font-size: 14px;">
+                    Selecione quais aplicações desta aba o usuário poderá acessar.
+                </p>
+                <div class="application-grid" id="portal-apps-grid">
+                    {% for papp in portal_apps %}
+                    <div class="application-card {% if papp.id in user_portal_app_ids %}selected{% endif %}">
+                        <label>
+                            <input type="checkbox" name="portal_apps" value="{{ papp.id }}" {% if papp.id in user_portal_app_ids %}checked{% endif %}>
+                            <div>
+                                <div class="app-name">
+                                    <span class="app-icon">🗂️</span>
+                                    {{ papp.name }}
+                                </div>
+                                <div class="app-desc">{{ papp.description or papp.key }}</div>
+                            </div>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="padding: 16px; border: 1px dashed rgba(0, 212, 255, 0.25); border-radius: 10px; background: rgba(30, 41, 59, 0.3); color: rgba(241, 245, 249, 0.7);">
+                    Nenhuma aplicação cadastrada ainda nesta aba. Você poderá habilitar assim que forem criadas.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
+            <button type="submit" class="btn btn-primary" id="save-btn">💾 Salvar Alterações</button>
+            <a href="{{ url_for('admin_users') }}" class="btn btn-secondary" style="margin-left: 10px;">Cancelar</a>
+        </div>
+    </form>
+</div>
+
+<script type="application/json" id="edit-user-app-data">{{ applications|tojson }}</script>
+<script type="application/json" id="edit-user-app-ids">{{ user_app_ids|tojson }}</script>
+<script type="application/json" id="edit-user-portal-apps">{{ portal_apps|tojson }}</script>
+<script type="application/json" id="edit-user-portal-ids">{{ user_portal_app_ids|tojson }}</script>
+
+<script>
+// Botão resetar senha: ler data-* e chamar resetPassword
+document.getElementById('btn-reset-password')?.addEventListener('click', function() {
+    const userId = this.getAttribute('data-user-id');
+    const username = this.getAttribute('data-username');
+    if (userId && username !== null) resetPassword(parseInt(userId, 10), username);
+});
+
+// Função para resetar senha
+// Função para resetar senha com modal de exibição
+function resetPassword(userId, username) {
+    if (!confirm(`Tem certeza que deseja resetar a senha do usuário "${username}"?\n\nUma nova senha temporária será gerada e exibida para você copiar.`)) {
+        return;
+    }
+    
+    // Mostrar loading
+    const loadingModal = showLoadingModal('Gerando nova senha...');
+    
+    // Obter CSRF token do formulário
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+    
+    // Fazer requisição AJAX
+    fetch(`/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        loadingModal.remove();
+        if (data.success) {
+            showPasswordModal(data.temp_password, username);
+        } else {
+            alert('Erro: ' + data.message);
+        }
+    })
+    .catch(error => {
+        loadingModal.remove();
+        alert('Erro ao resetar senha: ' + error.message);
+    });
+}
+
+// Função para mostrar modal de loading
+function showLoadingModal(message) {
+    const modal = document.createElement('div');
+    modal.id = 'loading-modal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+    modal.innerHTML = `
+        <div style="background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px); padding: 35px; border-radius: 15px; text-align: center; border: 1px solid rgba(0, 212, 255, 0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="font-size: 56px; margin-bottom: 18px; animation: pulse 2s infinite; color: rgba(0, 212, 255, 0.9);">⏳</div>
+            <div style="font-size: 16px; color: rgba(0, 212, 255, 0.9); font-weight: 600; font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 1px;">${message}</div>
+        </div>
+        <style>
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.85; }
+        }
+        </style>
+    `;
+    document.body.appendChild(modal);
+    return modal;
+}
+
+// Função para mostrar modal com senha temporária
+function showPasswordModal(password, username) {
+    const modal = document.createElement('div');
+    modal.id = 'password-modal';
+    modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+    modal.innerHTML = `
+        <div style="background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px); padding: 35px; border-radius: 15px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.5); border: 1px solid rgba(0, 212, 255, 0.3); position: relative; overflow: hidden;">
+            <div style="text-align: center; margin-bottom: 25px;">
+                <div style="font-size: 64px; margin-bottom: 15px;">🔐</div>
+                <h2 style="color: rgba(0, 212, 255, 0.9); margin: 0 0 10px 0; font-size: 24px; font-weight: 700; font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 1px;">Senha Resetada!</h2>
+                <p style="color: rgba(224, 224, 224, 0.7); margin: 0; font-size: 13px;">Nova senha temporária para: <strong style="color: rgba(0, 212, 255, 0.9); font-weight: 600;">${username}</strong></p>
+            </div>
+            
+            <div style="background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(0, 212, 255, 0.25);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <input type="text" id="temp-password-display" value="${password}" readonly 
+                           style="flex: 1; background: transparent; border: none; color: rgba(0, 255, 136, 0.9); font-size: 20px; font-weight: 600; font-family: 'Courier New', monospace; letter-spacing: 2px; text-align: center; outline: none;">
+                    <button onclick="copyPassword('${password}')" style="background: rgba(0, 212, 255, 0.15); color: rgba(0, 212, 255, 0.9); border: 1px solid rgba(0, 212, 255, 0.3); padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s; font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 0.5px; font-size: 11px;" onmouseover="this.style.background='rgba(0, 212, 255, 0.25)'; this.style.borderColor='rgba(0, 212, 255, 0.5)'" onmouseout="this.style.background='rgba(0, 212, 255, 0.15)'; this.style.borderColor='rgba(0, 212, 255, 0.3)'">
+                        📋 Copiar
+                    </button>
+                </div>
+                <div id="copy-feedback" style="text-align: center; margin-top: 12px; color: rgba(0, 255, 136, 0.9); font-size: 13px; display: none; font-weight: 600; font-family: 'Orbitron', sans-serif;">
+                    ✓ Senha copiada para a área de transferência!
+                </div>
+            </div>
+            
+            <div style="background: rgba(255, 170, 0, 0.08); backdrop-filter: blur(10px); padding: 18px; border-radius: 10px; margin-bottom: 20px; border: 1px solid rgba(255, 170, 0, 0.25); border-left: 3px solid rgba(255, 170, 0, 0.6);">
+                <p style="margin: 0; color: rgba(255, 170, 0, 0.9); font-size: 12px; line-height: 1.7; font-weight: 600;">
+                    <strong style="font-size: 14px;">⚠️ IMPORTANTE:</strong><br>
+                    • Esta senha é temporária e será exibida apenas uma vez<br>
+                    • Anote ou copie a senha antes de fechar este modal<br>
+                    • O usuário precisará alterar a senha no próximo login
+                </p>
+            </div>
+            
+            <button onclick="closePasswordModal()" style="width: 100%; background: rgba(0, 212, 255, 0.15); color: rgba(0, 212, 255, 0.9); border: 1px solid rgba(0, 212, 255, 0.3); padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s; font-family: 'Orbitron', sans-serif; text-transform: uppercase; letter-spacing: 1px;" onmouseover="this.style.background='rgba(0, 212, 255, 0.25)'; this.style.borderColor='rgba(0, 212, 255, 0.5)'" onmouseout="this.style.background='rgba(0, 212, 255, 0.15)'; this.style.borderColor='rgba(0, 212, 255, 0.3)'">
+                ✓ Entendi, Fechar
+            </button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    
+    // Adicionar animação shimmer
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes shimmer {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Fechar ao clicar fora
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closePasswordModal();
+        }
+    });
+}
+
+// Função para copiar senha
+function copyPassword(password) {
+    navigator.clipboard.writeText(password).then(function() {
+        const feedback = document.getElementById('copy-feedback');
+        if (feedback) {
+            feedback.style.display = 'block';
+            setTimeout(() => {
+                feedback.style.display = 'none';
+            }, 3000);
+        }
+    }).catch(function(err) {
+        alert('Erro ao copiar: ' + err);
+    });
+}
+
+// Função para fechar modal
+function closePasswordModal() {
+    const modal = document.getElementById('password-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Dados das aplicações (carregados do data-* para evitar conflito com linter/Jinja)
+const applicationsData = JSON.parse(document.getElementById('edit-user-app-data').textContent);
+const userAppIds = JSON.parse(document.getElementById('edit-user-app-ids').textContent);
+const portalAppsData = JSON.parse(document.getElementById('edit-user-portal-apps').textContent);
+const userPortalAppIds = JSON.parse(document.getElementById('edit-user-portal-ids').textContent);
+
+// Função para mostrar/esconder seção de aplicações
+function toggleApplicationsSection() {
+    const groupSelect = document.getElementById('group_id');
+    const applicationsSection = document.getElementById('applications-section');
+    
+    if (!groupSelect || !applicationsSection) return;
+    
+    const selectedOption = groupSelect.options[groupSelect.selectedIndex];
+    const groupName = selectedOption.getAttribute('data-group-name') || selectedOption.text.toLowerCase();
+    
+    console.log('Grupo selecionado:', groupName);
+    
+    if (groupName === 'operacao' || groupName.includes('operação') || groupName.includes('operacao')) {
+        applicationsSection.style.display = 'block';
+        console.log('Mostrando seção de aplicações');
+    } else {
+        applicationsSection.style.display = 'none';
+        console.log('Escondendo seção de aplicações');
+    }
+}
+
+// Inicializar quando a página carregar
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== INICIALIZANDO PÁGINA DE EDIÇÃO ===');
+    
+    // Verificar estado inicial
+    toggleApplicationsSection();
+    
+    // Adicionar listener para mudanças no select
+    const groupSelect = document.getElementById('group_id');
+    if (groupSelect) {
+        groupSelect.addEventListener('change', toggleApplicationsSection);
+    }
+    
+    // Gerenciar checkbox active e debug do formulário - tudo em um único listener
+    const activeCheckbox = document.getElementById('active');
+    const form = document.getElementById('edit-user-form');
+    const saveBtn = document.getElementById('save-btn');
+    const appsSection = document.getElementById('applications-section');
+    
+    console.log('Form encontrado?', form ? 'SIM' : 'NÃO');
+    console.log('Checkbox encontrado?', activeCheckbox ? 'SIM' : 'NÃO');
+    console.log('Botão salvar encontrado?', saveBtn ? 'SIM' : 'NÃO');
+    console.log('Seção de aplicações encontrada?', appsSection ? 'SIM' : 'NÃO');
+    
+    // Verificar dados das aplicações
+    console.log('Total de aplicações disponíveis (do servidor):', applicationsData ? applicationsData.length : 0);
+    console.log('IDs de aplicações do usuário:', userAppIds);
+    
+    // Verificar checkboxes de aplicações imediatamente
+    if (appsSection) {
+        console.log('Display da seção:', appsSection.style.display);
+        const allCheckboxes = appsSection.querySelectorAll('input[type="checkbox"]');
+        console.log('Checkboxes na seção de aplicações (ao carregar):', allCheckboxes.length);
+        allCheckboxes.forEach((cb, idx) => {
+            console.log(`  Checkbox ${idx}: name="${cb.name}", value="${cb.value}", checked=${cb.checked}, form="${cb.form ? cb.form.id : 'none'}"`);
+        });
+        
+        // Verificar se há elementos na grid
+        const grid = document.getElementById('applications-grid');
+        if (grid) {
+            console.log('Elementos na grid:', grid.children.length);
+            console.log('HTML da grid (primeiros 300 chars):', grid.innerHTML.substring(0, 300));
+        }
+    } else {
+        console.warn('⚠️ Seção de aplicações NÃO encontrada ao carregar!');
+    }
+    
+    // Verificar se os checkboxes estão dentro do formulário
+    if (form) {
+        const formCheckboxes = form.querySelectorAll('input[name="applications"]');
+        console.log('Checkboxes no formulário (ao carregar):', formCheckboxes.length);
+        if (formCheckboxes.length === 0) {
+            // Tentar buscar de outra forma
+            const allInputs = form.querySelectorAll('input');
+            console.log('Total de inputs no formulário:', allInputs.length);
+            allInputs.forEach((input, idx) => {
+                if (input.type === 'checkbox') {
+                    console.log(`  Input ${idx}: name="${input.name}", value="${input.value}"`);
+                }
+            });
+        }
+    }
+    
+    if (form) {
+        // Gerenciar checkbox active e garantir que o formulário seja enviado
+        if (activeCheckbox && saveBtn) {
+            // Usar click no botão e processar ANTES de permitir o submit
+            saveBtn.addEventListener('click', function(e) {
+                console.log('🔘 BOTÃO SALVAR CLICADO!');
+                console.log('Estado do checkbox:', activeCheckbox.checked);
+                
+                // Processar checkbox ANTES do submit
+                // Remover qualquer hidden anterior que possa existir
+                const existingHidden = form.querySelector('input[name="active"][type="hidden"]');
+                if (existingHidden) {
+                    existingHidden.remove();
+                    console.log('Removido hidden anterior');
+                }
+                
+                // Se o checkbox não estiver marcado, adicionar hidden com valor 0
+                if (!activeCheckbox.checked) {
+                    // Adicionar hidden com valor 0
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'active';
+                    hiddenInput.value = '0';
+                    form.appendChild(hiddenInput);
+                    console.log('✓ Checkbox DESMARCADO - adicionado hidden active=0');
+                } else {
+                    console.log('✓ Checkbox MARCADO - será enviado active=1');
+                }
+                
+                // Verificar checkboxes de aplicações antes de enviar
+                // Buscar diretamente na seção de aplicações primeiro
+                const appsSection = document.getElementById('applications-section');
+                let applicationCheckboxes = [];
+                
+                if (appsSection) {
+                    console.log('Seção de aplicações encontrada, display:', appsSection.style.display);
+                    // Buscar todos os checkboxes dentro da seção
+                    applicationCheckboxes = appsSection.querySelectorAll('input[type="checkbox"]');
+                    console.log('Checkboxes encontrados na seção:', applicationCheckboxes.length);
+                }
+                
+                // Se não encontrar na seção, tentar no formulário
+                if (applicationCheckboxes.length === 0) {
+                    console.log('Tentando buscar checkboxes no formulário...');
+                    applicationCheckboxes = form.querySelectorAll('input[name="applications"]');
+                }
+                
+                // Se ainda não encontrar, tentar em todo o documento
+                if (applicationCheckboxes.length === 0) {
+                    console.log('Tentando buscar checkboxes em todo o documento...');
+                    applicationCheckboxes = document.querySelectorAll('input[name="applications"]');
+                }
+                
+                const checkedApps = [];
+                applicationCheckboxes.forEach((cb, idx) => {
+                    console.log(`Checkbox ${idx}: name="${cb.name}", value="${cb.value}", checked=${cb.checked}, form="${cb.form ? cb.form.id : 'none'}"`);
+                    if (cb.checked && cb.name === 'applications') {
+                        checkedApps.push(cb.value);
+                    }
+                });
+                
+                console.log('📱 Aplicações selecionadas:', checkedApps);
+                console.log('Total de checkboxes encontrados:', applicationCheckboxes.length);
+                console.log('Checkboxes marcados:', checkedApps.length);
+                
+                // Se não encontrar checkboxes, pode ser que a seção não foi renderizada
+                if (applicationCheckboxes.length === 0) {
+                    console.error('❌ NENHUM CHECKBOX DE APLICAÇÃO ENCONTRADO!');
+                    if (appsSection) {
+                        console.error('HTML da seção (primeiros 500 chars):', appsSection.innerHTML.substring(0, 500));
+                    } else {
+                        console.error('Seção de aplicações NÃO encontrada!');
+                    }
+                }
+                
+                // IMPORTANTE: Garantir que os checkboxes estejam associados ao formulário
+                // Se os checkboxes não estiverem no formulário, adicionar campos hidden com os valores
+                if (checkedApps.length > 0) {
+                    console.log('Adicionando campos hidden para aplicações selecionadas...');
+                    // Remover campos hidden anteriores de aplicações
+                    const existingHiddenApps = form.querySelectorAll('input[name="applications"][type="hidden"]');
+                    existingHiddenApps.forEach(h => h.remove());
+                    
+                    // Adicionar campos hidden para cada aplicação selecionada
+                    checkedApps.forEach(appId => {
+                        const hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = 'applications';
+                        hiddenInput.value = appId;
+                        form.appendChild(hiddenInput);
+                        console.log(`  Adicionado hidden: applications=${appId}`);
+                    });
+                }
+                
+                // NÃO usar setTimeout - deixar o submit natural acontecer
+                // O botão já está dentro do formulário, então o submit natural deve funcionar
+                console.log('📤 Permitindo submit natural do formulário...');
+            }, false);
+        }
+        
+        // Listener no submit para debug e garantir que aplicações sejam enviadas
+        form.addEventListener('submit', function(e) {
+            console.log('📤 === EVENTO SUBMIT DISPARADO ===');
+            
+            // Verificar se há checkboxes de aplicações - tentar múltiplos seletores
+            let applicationCheckboxes = this.querySelectorAll('input[name="applications"]');
+            if (applicationCheckboxes.length === 0) {
+                applicationCheckboxes = document.querySelectorAll('input[name="applications"]');
+            }
+            if (applicationCheckboxes.length === 0) {
+                const appsSection = document.getElementById('applications-section');
+                if (appsSection) {
+                    applicationCheckboxes = appsSection.querySelectorAll('input[type="checkbox"]');
+                }
+            }
+            
+            const checkedApps = [];
+            applicationCheckboxes.forEach(cb => {
+                console.log('Checkbox no submit:', cb.name, cb.value, 'Marcado:', cb.checked, 'Form:', cb.form ? cb.form.id : 'none');
+                if (cb.checked && cb.name === 'applications') {
+                    checkedApps.push(cb.value);
+                }
+            });
+            
+            console.log('📱 Checkboxes de aplicações encontrados:', applicationCheckboxes.length);
+            console.log('📱 Aplicações marcadas:', checkedApps);
+            
+            // IMPORTANTE: Se encontrou aplicações marcadas, adicionar como campos hidden
+            // Isso garante que sejam enviadas mesmo se os checkboxes não estiverem no formulário
+            if (checkedApps.length > 0) {
+                // Remover campos hidden anteriores de aplicações
+                const existingHiddenApps = this.querySelectorAll('input[name="applications"][type="hidden"]');
+                existingHiddenApps.forEach(h => h.remove());
+                
+                // Adicionar campos hidden para cada aplicação selecionada
+                checkedApps.forEach(appId => {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'applications';
+                    hiddenInput.value = appId;
+                    this.appendChild(hiddenInput);
+                    console.log(`  ✅ Adicionado hidden: applications=${appId}`);
+                });
+            }
+            
+            // Verificar grupo selecionado
+            const groupSelect = document.getElementById('group_id');
+            const selectedGroup = groupSelect ? groupSelect.options[groupSelect.selectedIndex] : null;
+            const groupName = selectedGroup ? (selectedGroup.getAttribute('data-group-name') || selectedGroup.text.toLowerCase()) : '';
+            console.log('👥 Grupo selecionado:', groupName);
+            
+            // Se o grupo for Operação mas não houver aplicações selecionadas, avisar
+            if (groupName.includes('operacao') || groupName.includes('operação')) {
+                if (checkedApps.length === 0) {
+                    console.warn('⚠️ Grupo Operação selecionado mas nenhuma aplicação marcada!');
+                } else {
+                    console.log('✅ Grupo Operação com', checkedApps.length, 'aplicações selecionadas');
+                }
+            }
+            
+            // Debug: mostrar todos os dados que serão enviados
+            const formData = new FormData(this);
+            console.log('📋 Todos os dados do formulário:');
+            for (let [key, value] of formData.entries()) {
+                console.log('  ' + key + ': ' + value);
+            }
+            console.log('=====================================');
+            
+            // Não prevenir o envio padrão
+        }, false);
+    } else {
+        console.error('❌ FORMULÁRIO NÃO ENCONTRADO!');
+    }
+    
+    // Atualizar visual dos cards quando checkbox muda
+    const checkboxes = document.querySelectorAll('.application-card input[type="checkbox"]');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const card = this.closest('.application-card');
+            if (this.checked) {
+                card.classList.add('selected');
+            } else {
+                card.classList.remove('selected');
+            }
+        });
+    });
+
+    // Controle da aba de aplicações nova
+    const portalAccessCheckbox = document.getElementById('portal_tab_access');
+    const portalAppsSection = document.getElementById('portal-apps-section');
+    if (portalAccessCheckbox && portalAppsSection) {
+        const togglePortalSection = () => {
+            portalAppsSection.style.display = portalAccessCheckbox.checked ? 'block' : 'none';
+        };
+        portalAccessCheckbox.addEventListener('change', togglePortalSection);
+        togglePortalSection();
+    }
+});
+</script>
+{% endblock %}

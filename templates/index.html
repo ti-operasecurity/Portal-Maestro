@@ -46,12 +46,47 @@
                     <div class="tech-line line-2"></div>
                 </div>
             </div>
+            <div class="user-menu-wrapper">
+                <div class="menu-toggle" onclick="toggleMenu()">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <div id="user-menu" class="user-menu">
+                    {% if user_info and (user_info.portal_tab_access or user_info.is_admin) %}
+                    <a href="{{ url_for('applications_tab') }}" class="user-menu-link"><span>🗂️</span> <span>Aplicações</span></a>
+                    <a href="{{ url_for('dashboards_tab') }}" class="user-menu-link"><span>📊</span> <span>Dashboards</span></a>
+                    {% endif %}
+                    {% if user_info and user_info.is_admin %}
+                    <a href="{{ url_for('admin_users') }}" class="user-menu-link"><span>⚙️</span> <span>Administração</span></a>
+                    {% endif %}
+                    <a href="{{ url_for('logout') }}" class="user-menu-link user-menu-link--danger"><span>🚪</span> <span>Sair</span></a>
+                </div>
+            </div>
+            <script>
+            function toggleMenu() {
+                const menu = document.getElementById('user-menu');
+                if (menu.style.display === 'none' || menu.style.display === '') {
+                    menu.style.display = 'flex';
+                } else {
+                    menu.style.display = 'none';
+                }
+            }
+            // Fechar menu ao clicar fora
+            document.addEventListener('click', function(event) {
+                const menu = document.getElementById('user-menu');
+                const toggle = document.querySelector('.menu-toggle');
+                if (menu && toggle && !menu.contains(event.target) && !toggle.contains(event.target)) {
+                    menu.style.display = 'none';
+                }
+            });
+            </script>
         </header>
 
         <main>
             <div class="aplicacoes-grid">
                 {% for app in aplicacoes %}
-                <a href="{{ app.url_final }}" {% if app.target_blank %}target="_blank"{% endif %} class="app-card {% if app.get('tamanho') == 'pequeno' %}app-card-small{% endif %}" style="--card-accent: {{ app.cor }}">
+                <a href="{{ app.url_final }}" {% if app.target_blank %}target="_blank"{% endif %} class="app-card" style="--card-accent: {{ app.cor }}">
                     <div class="card-background"></div>
                     <div class="card-border-glow"></div>
                     <div class="card-content">
