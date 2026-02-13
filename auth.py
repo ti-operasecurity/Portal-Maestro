@@ -199,13 +199,25 @@ class AuthManager:
             return []
 
     def get_portal_dashboards(self, active_only: bool = True) -> list:
-        """Retorna os dashboards cadastrados na aba Dashboards (maestro_portal_dashboards)."""
+        """Retorna os dashboards da aba Dashboards (maestro_applications com section='portal_dashboard')."""
         try:
-            query = self.supabase.table('maestro_portal_dashboards').select('*')
+            query = self.supabase.table('maestro_applications').select('id, name, url_proxy, display_name, icon, color, active').eq('section', 'portal_dashboard')
             if active_only:
                 query = query.eq('active', True)
-            result = query.order('name').execute()
-            return result.data or []
+            result = query.order('display_name').execute()
+            rows = result.data or []
+            # Formato compatível com o que a tela espera: key, name, url, description
+            return [
+                {
+                    'id': r.get('id'),
+                    'key': r.get('url_proxy') or r.get('name'),
+                    'name': r.get('display_name') or r.get('name', 'Dashboard'),
+                    'url': '/proxy/' + (r.get('url_proxy') or r.get('name') or ''),
+                    'description': '',
+                    'active': r.get('active', True),
+                }
+                for r in rows
+            ]
         except Exception as e:
             import logging
             logging.error(f"Erro ao buscar portal dashboards: {str(e)}")
@@ -275,20 +287,18 @@ class AuthManager:
             elif app_key.startswith('proxy/'):
                 app_key = app_key.replace('proxy/', '')
             
-            # 1) Tentar nas aplicações principais
-            app_result = self.supabase.table('maestro_applications').select('id').eq('url_proxy', app_key).eq('active', True).execute()
+            # 1) Tentar em maestro_applications (principais e portal_dashboard)
+            app_result = self.supabase.table('maestro_applications').select('id, section').eq('url_proxy', app_key).eq('active', True).execute()
             if app_result.data:
-                app_id = app_result.data[0]['id']
+                row = app_result.data[0]
+                if row.get('section') == 'portal_dashboard':
+                    user = self.get_user_by_id(user_id)
+                    return bool(user and user.get('portal_tab_access'))
+                app_id = row['id']
                 access_result = self.supabase.table('maestro_user_application_access').select('id').eq('user_id', user_id).eq('application_id', app_id).execute()
                 return len(access_result.data) > 0
 
-            # 2) Tentar na tabela de Dashboards (aba Dashboards: quem tem portal_tab_access vê todos)
-            dashboard = self.supabase.table('maestro_portal_dashboards').select('id').eq('key', app_key).eq('active', True).execute()
-            if dashboard.data:
-                user = self.get_user_by_id(user_id)
-                return bool(user and user.get('portal_tab_access'))
-
-            # 3) Tentar nas aplicações da aba Aplicações (portal)
+            # 2) Tentar nas aplicações da aba Aplicações (portal)
             portal_app = self.supabase.table('maestro_portal_applications').select('id').eq('key', app_key).eq('active', True).execute()
             if portal_app.data:
                 portal_app_id = portal_app.data[0]['id']
@@ -432,10 +442,13 @@ class AuthManager:
             return []
     
     def get_all_applications(self) -> list:
-        """Busca todas as aplicações"""
+        """Busca todas as aplicações principais (exclui section='portal_dashboard', usadas na aba Dashboards)."""
         try:
-            result = self.supabase.table('maestro_applications').select('*').eq('active', True).order('display_name').execute()
-            return result.data
+            query = self.supabase.table('maestro_applications').select('*').eq('active', True)
+            # Apenas 'main' ou sem section (null); não listar portal_dashboard na tela de conceder acesso
+            query = query.or_('section.is.null,section.eq.main')
+            result = query.order('display_name').execute()
+            return result.data or []
         except Exception:
             return []
     

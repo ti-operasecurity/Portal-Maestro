@@ -182,9 +182,11 @@ def format_datetime_filter(value):
 @app.before_request
 def log_request_info():
     """Log informações da requisição para debug (especialmente MacBooks)"""
-    # Atualizar esquema baseado no header do proxy
+    # Esquema: HTTPS só quando atrás de proxy com X-Forwarded-Proto; senão HTTP (local)
     if request.headers.get('X-Forwarded-Proto') == 'https':
         app.config['PREFERRED_URL_SCHEME'] = 'https'
+    else:
+        app.config['PREFERRED_URL_SCHEME'] = 'http'
     
     # Sempre logar informações importantes para debug de acesso externo
     access_logger.info(
@@ -271,68 +273,99 @@ def add_headers(response):
     
     return response
 
-# Configurações das aplicações
-# Ordem: 4 cards no topo + 4 cards embaixo (todos do mesmo tamanho)
+# Configurações das aplicações (Dashboards)
+# Ordem: principais (esq→dir) Monitoração Produtiva, Perdas, Ocupação Forno, Produção, Fluxo por Etapas; demais na sequência
+# Títulos sem "Dashboard"/"Dash" por já estarem no módulo Dashboards
 APLICACOES = [
-    # Topo - 4 cards
     {
         'nome': 'Monitoração Produtiva',
         'url': 'http://10.150.16.45:8082/',
-        'url_proxy': '/proxy/painel-monitoracao',  # URL através do proxy
-        'icone': '📊',
-        'cor': '#3b82f6',  # Azul vibrante
-        'tamanho': 'pequeno'  # Card pequeno
+        'url_proxy': '/proxy/painel-monitoracao',
+        'icone': 'chart-bar',
+        'cor': '#3b82f6',
+        'tamanho': 'pequeno'
     },
     {
-        'nome': 'Dashboard de Perdas',
+        'nome': 'Perdas',
         'url': 'http://10.150.16.45:5253/',
         'url_proxy': '/proxy/dashboard-perdas',
-        'icone': '📉',
-        'cor': '#ef4444',  # Vermelho para alertas/perdas
-        'tamanho': 'pequeno'  # Card pequeno
+        'icone': 'trending-down',
+        'cor': '#ef4444',
+        'tamanho': 'pequeno'
     },
     {
-        'nome': 'Dashboard de Produção',
+        'nome': 'Ocupação Forno',
+        'url': 'http://10.150.16.45:5123/dashboard_ocupacao',
+        'url_proxy': '/proxy/dashboard-ocupacao-forno',
+        'icone': 'flame',
+        'cor': '#f59e0b',
+        'tamanho': 'pequeno'
+    },
+    {
+        'nome': 'Produção',
         'url': 'http://10.150.16.45:8092/',
         'url_proxy': '/proxy/dashboard-producao',
-        'icone': '📈',
-        'cor': '#10b981',  # Verde para produção
-        'tamanho': 'pequeno'  # Card pequeno
+        'icone': 'trending-up',
+        'cor': '#10b981',
+        'tamanho': 'pequeno'
     },
     {
-        'nome': 'BUFFER do FORNO',
+        'nome': 'Fluxo por Etapas',
+        'url': 'http://10.150.16.45:9191/',
+        'url_proxy': '/proxy/dashboard-fluxo-etapas',
+        'icone': 'workflow',
+        'cor': '#8b5cf6',
+        'tamanho': 'pequeno'
+    },
+    {
+        'nome': 'Buffer do Forno',
         'url': 'http://10.150.16.45:4300/buffer',
         'url_proxy': '/proxy/buffer-forno',
-        'icone': '🔄',
-        'cor': '#14b8a6',  # Teal para buffer/produção
-        'tamanho': 'pequeno'  # Card pequeno
+        'icone': 'refresh',
+        'cor': '#14b8a6',
+        'tamanho': 'pequeno'
     },
-    # Embaixo - 2 cards
     {
         'nome': 'Aging de Estoque',
         'url': 'http://10.150.16.45:8079/',
         'url_proxy': '/proxy/aging-estoque',
-        'icone': '📦',
-        'cor': '#06b6d4',  # Ciano para estoque
-        'tamanho': 'pequeno'  # Card pequeno
+        'icone': 'package',
+        'cor': '#06b6d4',
+        'tamanho': 'pequeno'
+    },
+    # Ex-tabela de Dashboards (portal): na mesma organização da lista principal
+    {
+        'nome': 'Inspeção Final x Estoque',
+        'url': 'http://10.150.16.45:8093/',
+        'url_proxy': '/proxy/inspecao-final-estoque',
+        'icone': 'chart-pie',
+        'cor': '#00d4ff',
+        'tamanho': 'pequeno'
     },
     {
-        'nome': 'Dash Ocupação Forno',
-        'url': 'http://10.150.16.45:5123/dashboard_ocupacao',
-        'url_proxy': '/proxy/dashboard-ocupacao-forno',
-        'icone': '🔥',
-        'cor': '#f59e0b',  # Laranja/Amarelo para forno
-        'tamanho': 'pequeno'  # Card pequeno
-    },
-    {
-        'nome': 'Dashboard de Fluxo por Etapas',
-        'url': 'http://10.150.16.45:9191/',
-        'url_proxy': '/proxy/dashboard-fluxo-etapas',
-        'icone': '🔀',
-        'cor': '#8b5cf6',  # Roxo/Violeta para fluxo
-        'tamanho': 'pequeno'  # Card pequeno
+        'nome': 'Ocupação do dia Forno',
+        'url': 'http://10.150.16.45:5123/',
+        'url_proxy': '/proxy/dashboard-ocupacao-hoje',
+        'icone': 'chart-pie',
+        'cor': '#f59e0b',
+        'tamanho': 'pequeno'
     }
 ]
+
+# Ícones por aplicação (aba Aplicações) – chave = key da aplicação no portal
+APPLICATIONS_ICON_MAP = {
+    'apontamento-forno': 'flame',
+    'apontamento-inspecao-final': 'clipboard-check',
+    'etiquetas-montagem': 'barcode',
+    'gestao-estoque-sap': 'warehouse',
+    'monitoramento-autoclaves': 'gauge',
+    'monitoramento-fornos': 'flame',
+    'monitoramento-forno': 'flame',
+    'app-8090': 'workflow',
+    'orquestrador': 'workflow',
+    'portal-procedimentos': 'book',
+    'robo-logistica': 'bot',
+}
 
 # Mapeamento de rotas proxy para URLs reais
 PROXY_ROUTES = {
@@ -974,72 +1007,66 @@ def index():
     user_id = session.get('user_id')
     user_permissions = auth_manager.get_user_permissions(user_id)
     
-    # Preparar aplicações com URL correta (proxy ou direta) e filtrar por permissões
-    aplicacoes_preparadas = []
-    for app in APLICACOES:
-        # Verificar se usuário tem acesso a esta aplicação
-        url_proxy = app.get('url_proxy', '')
-        if url_proxy:
-            try:
-                if not auth_manager.has_application_access(user_id, url_proxy):
-                    continue  # Pular aplicação se usuário não tiver acesso
-            except ServiceUnavailableError:
-                continue  # Em caso de Supabase indisponível, não exibir a aplicação
-        app_copy = app.copy()
-        if USE_PROXY and 'url_proxy' in app:
-            app_copy['url_final'] = app['url_proxy']
-            app_copy['target_blank'] = False
-        else:
-            app_copy['url_final'] = app['url']
-            app_copy['target_blank'] = True
-        aplicacoes_preparadas.append(app_copy)
+    # --- Dashboards: só exibe para admin ou maestro_full (aba Aplicações = portal_tab_access, é outra permissão) ---
+    dashboards_list = []
+    can_see_dashboards = user_permissions.get('is_admin') or user_permissions.get('is_maestro_full')
+    if can_see_dashboards:
+        for app in APLICACOES:
+            app_copy = app.copy()
+            if USE_PROXY and 'url_proxy' in app:
+                app_copy['url_final'] = app['url_proxy']
+                app_copy['target_blank'] = False
+            else:
+                app_copy['url_final'] = app['url']
+                app_copy['target_blank'] = True
+            dashboards_list.append(app_copy)
     
-    # Para usuários do grupo "Operacao", adicionar aplicações do portal na tela inicial
-    group_name = user_permissions.get('group_name', '').lower()
-    if group_name == 'operacao':
-        # Buscar aplicações do portal permitidas para o usuário
+    # Dashboards do portal (DB): só os que ainda não estão na lista principal (APLICACOES)
+    if auth_manager.has_portal_tab_access(user_id):
+        url_proxy_keys = {a.get('url_proxy', '').replace('/proxy/', '').strip('/') for a in APLICACOES if a.get('url_proxy')}
+        portal_dashboards = auth_manager.get_portal_dashboards(active_only=True)
+        dashboard_colors = ['#00d4ff', '#f59e0b', '#8b5cf6', '#06b6d4', '#10b981']
+        for idx, d in enumerate(portal_dashboards):
+            key = (d.get('key') or '').strip() or (d.get('url', '').replace('/proxy/', '').strip('/'))
+            if key and key in url_proxy_keys:
+                continue  # já está em APLICACOES (ex.: Inspeção Final x Estoque, Ocupação do dia Forno)
+            dashboards_list.append({
+                'nome': d.get('name', 'Dashboard'),
+                'url_final': d.get('url', '') or ('/proxy/' + (d.get('key', '') or '')),
+                'icone': 'chart-pie',
+                'cor': dashboard_colors[idx % len(dashboard_colors)],
+                'tamanho': 'pequeno',
+                'target_blank': False,
+            })
+    
+    # --- Aplicações: portal (aba Aplicações), filtradas por permissão do usuário ---
+    applications_list = []
+    if auth_manager.has_portal_tab_access(user_id):
         portal_apps = auth_manager.get_portal_apps(active_only=True)
-        
-        # Filtrar aplicações permitidas para este usuário
         if user_permissions.get('is_admin') or user_permissions.get('is_maestro_full'):
             allowed_portal_apps = portal_apps
         else:
-            # Buscar aplicações permitidas para o usuário
             user_portal_apps = auth_manager.get_user_portal_apps(user_id)
-            permitted_ids = {app.get('id') for app in user_portal_apps if app and app.get('id')}
-            allowed_portal_apps = [app for app in portal_apps if app.get('id') in permitted_ids]
-        
-        # Converter aplicações do portal para o formato das aplicações principais
-        # Cores padrão para aplicações do portal (cíano/azul)
-        portal_colors = ['#00d4ff', '#06b6d4', '#3b82f6', '#0ea5e9', '#14b8a6']
-        for idx, portal_app in enumerate(allowed_portal_apps):
-            app_key = portal_app.get('key', '')
-            # Extrair o app_key da URL do proxy (ex: /proxy/app-8090 -> app-8090)
-            if portal_app.get('url'):
-                url_path = portal_app.get('url').lstrip('/proxy/').lstrip('/')
-                if url_path:
-                    app_key = url_path.split('/')[0]
-            
-            portal_app_formatted = {
-                'nome': portal_app.get('name', 'Aplicação'),
-                'url': '',  # Não usar URL direta
-                'url_proxy': portal_app.get('url', ''),  # URL do proxy
-                'icone': '🗂️',  # Ícone padrão para aplicações do portal
-                'cor': portal_colors[idx % len(portal_colors)],  # Rotacionar cores
-                'tamanho': 'pequeno'  # Cards pequenos para aplicações do portal
-            }
-            
-            # Processar URL da mesma forma que as aplicações principais
-            if USE_PROXY and 'url_proxy' in portal_app_formatted:
-                portal_app_formatted['url_final'] = portal_app_formatted['url_proxy']
-                portal_app_formatted['target_blank'] = False
-            else:
-                portal_app_formatted['url_final'] = portal_app_formatted.get('url', '')
-                portal_app_formatted['target_blank'] = True
-            
-            aplicacoes_preparadas.append(portal_app_formatted)
+            permitted_ids = {a.get('id') for a in user_portal_apps if a and a.get('id')}
+            allowed_portal_apps = [a for a in portal_apps if a.get('id') in permitted_ids]
+        app_colors = ['#00d4ff', '#06b6d4', '#3b82f6', '#0ea5e9', '#14b8a6']
+        # Cores distintas para os dois "forno" (mesmo ícone flame): Apontamento = laranja, Monitoramento = vermelho
+        forno_colors = {'apontamento-forno': '#f59e0b', 'monitoramento-fornos': '#ef4444', 'monitoramento-forno': '#ef4444'}
+        for idx, pa in enumerate(allowed_portal_apps):
+            app_key = (pa.get('key') or '').strip().lower()
+            icon_key = APPLICATIONS_ICON_MAP.get(app_key) or APPLICATIONS_ICON_MAP.get(
+                (pa.get('url', '') or '').replace('/proxy/', '').strip('/').lower()
+            ) or 'folder'
+            cor = forno_colors.get(app_key) or app_colors[idx % len(app_colors)]
+            applications_list.append({
+                'nome': pa.get('name', 'Aplicação'),
+                'url_final': pa.get('url', '') or ('/proxy/' + (pa.get('key', '') or '')),
+                'icone': icon_key,
+                'cor': cor,
+                'tamanho': 'pequeno',
+                'target_blank': False,
+            })
     
-    # Adicionar informações do usuário para o template
     user_info = {
         'username': session.get('username'),
         'is_admin': user_permissions.get('is_admin', False),
@@ -1048,7 +1075,7 @@ def index():
         'portal_tab_access': user_permissions.get('portal_tab_access', False)
     }
     
-    return render_template('index.html', aplicacoes=aplicacoes_preparadas, user_info=user_info)
+    return render_template('index.html', dashboards=dashboards_list, applications=applications_list, user_info=user_info)
 
 @app.route('/applications')
 @login_required

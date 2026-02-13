@@ -20,7 +20,7 @@
         <div class="gradient-orb orb-3"></div>
         <div class="grid-overlay"></div>
     </div>
-    
+
     <div class="container">
         <header>
             <div class="logo-wrapper">
@@ -47,72 +47,192 @@
                 </div>
             </div>
             <div class="user-menu-wrapper">
-                <div class="menu-toggle" onclick="toggleMenu()">
+                <div class="menu-toggle" onclick="toggleMenu()" aria-label="Menu">
                     <span></span>
                     <span></span>
                     <span></span>
                 </div>
                 <div id="user-menu" class="user-menu">
-                    {% if user_info and (user_info.portal_tab_access or user_info.is_admin) %}
-                    <a href="{{ url_for('applications_tab') }}" class="user-menu-link"><span>🗂️</span> <span>Aplicações</span></a>
-                    <a href="{{ url_for('dashboards_tab') }}" class="user-menu-link"><span>📊</span> <span>Dashboards</span></a>
-                    {% endif %}
                     {% if user_info and user_info.is_admin %}
                     <a href="{{ url_for('admin_users') }}" class="user-menu-link"><span>⚙️</span> <span>Administração</span></a>
                     {% endif %}
                     <a href="{{ url_for('logout') }}" class="user-menu-link user-menu-link--danger"><span>🚪</span> <span>Sair</span></a>
                 </div>
             </div>
-            <script>
-            function toggleMenu() {
-                const menu = document.getElementById('user-menu');
-                if (menu.style.display === 'none' || menu.style.display === '') {
-                    menu.style.display = 'flex';
-                } else {
-                    menu.style.display = 'none';
-                }
-            }
-            // Fechar menu ao clicar fora
-            document.addEventListener('click', function(event) {
-                const menu = document.getElementById('user-menu');
-                const toggle = document.querySelector('.menu-toggle');
-                if (menu && toggle && !menu.contains(event.target) && !toggle.contains(event.target)) {
-                    menu.style.display = 'none';
-                }
-            });
-            </script>
         </header>
 
-        <main>
-            <div class="aplicacoes-grid">
-                {% for app in aplicacoes %}
-                <a href="{{ app.url_final }}" {% if app.target_blank %}target="_blank"{% endif %} class="app-card" style="--card-accent: {{ app.cor }}">
-                    <div class="card-background"></div>
-                    <div class="card-border-glow"></div>
-                    <div class="card-content">
-                        <div class="app-icon-wrapper">
-                            <div class="icon-glow"></div>
-                            <div class="icon-ring"></div>
-                            <div class="app-icon">{{ app.icone }}</div>
-                        </div>
-                        <h3 class="app-nome">{{ app.nome }}</h3>
-                        <div class="app-link">
-                            <span class="link-text">Acessar</span>
-                            <div class="link-arrow">
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
+        <main class="portal-main">
+            <!-- Seção Dashboards (só exibida para quem tem permissão) -->
+            {% if dashboards %}
+            <section class="portal-section" id="section-dashboards">
+                <h2 class="section-header">
+                    <span class="section-icon">📊</span>
+                    <span class="section-title">Dashboards</span>
+                    <span class="section-count">({{ dashboards|length }})</span>
+                </h2>
+                <div class="section-cards">
+                    {% for app in dashboards %}
+                    {% if loop.index0 < 5 %}
+                    <div class="app-card-wrapper">
+                        <a href="{{ app.url_final }}" {% if app.target_blank %}target="_blank"{% endif %} class="app-card" style="--card-accent: {{ app.cor }}">
+                            <div class="card-background"></div>
+                            <div class="card-border-glow"></div>
+                            <div class="card-content">
+                                <div class="app-icon-wrapper">
+                                    <div class="icon-glow"></div>
+                                    <div class="icon-ring"></div>
+                                    <div class="app-icon">{% with icon_key=app.icone %}{% include 'partials/card_icon.html' %}{% endwith %}</div>
+                                </div>
+                                <h3 class="app-nome">{{ app.nome }}</h3>
+                                <div class="app-link">
+                                    <span class="link-text">Acessar</span>
+                                    <div class="link-arrow">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                            <div class="card-shine"></div>
+                            <div class="card-corner corner-tl"></div>
+                            <div class="card-corner corner-tr"></div>
+                            <div class="card-corner corner-bl"></div>
+                            <div class="card-corner corner-br"></div>
+                        </a>
                     </div>
-                    <div class="card-shine"></div>
-                    <div class="card-corner corner-tl"></div>
-                    <div class="card-corner corner-tr"></div>
-                    <div class="card-corner corner-bl"></div>
-                    <div class="card-corner corner-br"></div>
-                </a>
-                {% endfor %}
-            </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% if dashboards|length > 5 %}
+                <div class="section-more" id="section-more-dashboards" role="region" aria-label="Mais dashboards">
+                    <div class="section-more-inner">
+                        {% for app in dashboards %}
+                        {% if loop.index0 >= 5 %}
+                        <div class="app-card-wrapper">
+                            <a href="{{ app.url_final }}" {% if app.target_blank %}target="_blank"{% endif %} class="app-card" style="--card-accent: {{ app.cor }}">
+                                <div class="card-background"></div>
+                                <div class="card-border-glow"></div>
+                                <div class="card-content">
+                                    <div class="app-icon-wrapper">
+                                        <div class="icon-glow"></div>
+                                        <div class="icon-ring"></div>
+                                        <div class="app-icon">{% with icon_key=app.icone %}{% include 'partials/card_icon.html' %}{% endwith %}</div>
+                                    </div>
+                                    <h3 class="app-nome">{{ app.nome }}</h3>
+                                    <div class="app-link">
+                                        <span class="link-text">Acessar</span>
+                                        <div class="link-arrow">
+                                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-shine"></div>
+                                <div class="card-corner corner-tl"></div>
+                                <div class="card-corner corner-tr"></div>
+                                <div class="card-corner corner-bl"></div>
+                                <div class="card-corner corner-br"></div>
+                            </a>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="section-expand">
+                    <button type="button" class="btn-ver-todos" data-section="dashboards" aria-expanded="false">
+                        <span class="btn-text">Ver todos</span>
+                        <span class="btn-chevron" aria-hidden="true"></span>
+                    </button>
+                </div>
+                {% endif %}
+            </section>
+            {% endif %}
+
+            <!-- Seção Aplicações -->
+            <section class="portal-section" id="section-applications">
+                <h2 class="section-header">
+                    <span class="section-icon">⚙️</span>
+                    <span class="section-title">Aplicações</span>
+                    <span class="section-count">({{ applications|length }})</span>
+                </h2>
+                <div class="section-cards">
+                    {% for app in applications %}
+                    {% if loop.index0 < 5 %}
+                    <div class="app-card-wrapper">
+                        <a href="{{ app.url_final }}" {% if app.target_blank %}target="_blank"{% endif %} class="app-card" style="--card-accent: {{ app.cor }}">
+                            <div class="card-background"></div>
+                            <div class="card-border-glow"></div>
+                            <div class="card-content">
+                                <div class="app-icon-wrapper">
+                                    <div class="icon-glow"></div>
+                                    <div class="icon-ring"></div>
+                                    <div class="app-icon">{% with icon_key=app.icone %}{% include 'partials/card_icon.html' %}{% endwith %}</div>
+                                </div>
+                                <h3 class="app-nome">{{ app.nome }}</h3>
+                                <div class="app-link">
+                                    <span class="link-text">Acessar</span>
+                                    <div class="link-arrow">
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-shine"></div>
+                            <div class="card-corner corner-tl"></div>
+                            <div class="card-corner corner-tr"></div>
+                            <div class="card-corner corner-bl"></div>
+                            <div class="card-corner corner-br"></div>
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% if applications|length > 5 %}
+                <div class="section-more" id="section-more-applications" role="region" aria-label="Mais aplicações">
+                    <div class="section-more-inner">
+                        {% for app in applications %}
+                        {% if loop.index0 >= 5 %}
+                        <div class="app-card-wrapper">
+                            <a href="{{ app.url_final }}" {% if app.target_blank %}target="_blank"{% endif %} class="app-card" style="--card-accent: {{ app.cor }}">
+                                <div class="card-background"></div>
+                                <div class="card-border-glow"></div>
+                                <div class="card-content">
+                                    <div class="app-icon-wrapper">
+                                        <div class="icon-glow"></div>
+                                        <div class="icon-ring"></div>
+                                        <div class="app-icon">{% with icon_key=app.icone %}{% include 'partials/card_icon.html' %}{% endwith %}</div>
+                                    </div>
+                                    <h3 class="app-nome">{{ app.nome }}</h3>
+                                    <div class="app-link">
+                                        <span class="link-text">Acessar</span>
+                                        <div class="link-arrow">
+                                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-shine"></div>
+                                <div class="card-corner corner-tl"></div>
+                                <div class="card-corner corner-tr"></div>
+                                <div class="card-corner corner-bl"></div>
+                                <div class="card-corner corner-br"></div>
+                            </a>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="section-expand">
+                    <button type="button" class="btn-ver-todos" data-section="applications" aria-expanded="false">
+                        <span class="btn-text">Ver todos</span>
+                        <span class="btn-chevron" aria-hidden="true"></span>
+                    </button>
+                </div>
+                {% endif %}
+            </section>
         </main>
 
         <footer>
@@ -122,5 +242,44 @@
             </div>
         </footer>
     </div>
+
+    <script>
+    (function() {
+        function toggleMenu() {
+            var menu = document.getElementById('user-menu');
+            if (!menu) return;
+            if (menu.style.display === 'none' || menu.style.display === '') {
+                menu.style.display = 'flex';
+            } else {
+                menu.style.display = 'none';
+            }
+        }
+        window.toggleMenu = toggleMenu;
+        document.addEventListener('click', function(event) {
+            var menu = document.getElementById('user-menu');
+            var toggle = document.querySelector('.menu-toggle');
+            if (menu && toggle && !menu.contains(event.target) && !toggle.contains(event.target)) {
+                menu.style.display = 'none';
+            }
+        });
+
+        // Expandir / recolher "Ver todos"
+        var buttons = document.querySelectorAll('.btn-ver-todos');
+        buttons.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var sectionId = this.getAttribute('data-section');
+                var more = document.getElementById('section-more-' + sectionId);
+                if (!more) return;
+                var expanded = more.classList.toggle('is-expanded');
+                this.setAttribute('aria-expanded', expanded);
+                this.querySelector('.btn-text').textContent = expanded ? 'Ver menos' : 'Ver todos';
+                this.classList.toggle('is-expanded', expanded);
+                if (typeof feather !== 'undefined') feather.replace({ class: 'card-svg-icon', width: 24, height: 24 });
+            });
+        });
+    })();
+    </script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script>if (typeof feather !== 'undefined') feather.replace({ class: 'card-svg-icon', width: 24, height: 24 });</script>
 </body>
 </html>

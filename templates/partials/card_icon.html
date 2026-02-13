@@ -1,0 +1,37 @@
+{# Ícones prontos: Feather Icons (feathericons.com). Use {% with icon_key=app.icone %}{% include 'partials/card_icon.html' %}{% endwith %} #}
+{# Mapeamento: chart-bar->bar-chart-2, trending-down/up->trending-down/up, refresh->refresh-cw, package->package, flame->zap, workflow->git-branch, chart-pie->activity, folder->folder #}
+{% if icon_key == 'chart-bar' %}
+<i data-feather="bar-chart-2" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'trending-down' %}
+<i data-feather="trending-down" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'trending-up' %}
+<i data-feather="trending-up" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'refresh' %}
+<i data-feather="refresh-cw" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'package' %}
+<i data-feather="package" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'flame' %}
+<i data-feather="zap" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'workflow' %}
+<i data-feather="git-branch" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'chart-pie' %}
+<i data-feather="activity" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'folder' %}
+<i data-feather="folder" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'clipboard-check' %}
+<i data-feather="clipboard" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'barcode' %}
+<svg class="card-svg-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="2" y="6" width="1.5" height="12" rx="0.3"/><rect x="5" y="6" width="1" height="12" rx="0.2"/><rect x="7.5" y="6" width="2" height="12" rx="0.3"/><rect x="11" y="6" width="1" height="12" rx="0.2"/><rect x="13.5" y="6" width="2.5" height="12" rx="0.3"/><rect x="17" y="6" width="1" height="12" rx="0.2"/><rect x="19.5" y="6" width="1.5" height="12" rx="0.3"/></svg>
+{% elif icon_key == 'warehouse' %}
+<i data-feather="archive" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'gauge' %}
+<i data-feather="activity" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'line-chart' %}
+<i data-feather="trending-up" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'book' %}
+<i data-feather="book" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% elif icon_key == 'bot' %}
+<i data-feather="cpu" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% else %}
+<i data-feather="folder" class="card-svg-icon feather-icon" aria-hidden="true"></i>
+{% endif %}

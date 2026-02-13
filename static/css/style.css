@@ -68,6 +68,37 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* Escala base 90% apenas em desktop, para não forçar layout mobile em tablets/MacBook */
+/* Barra de rolagem oculta – rolagem ativa, barra invisível */
+html {
+    scrollbar-width: none;
+}
+@media (min-width: 1025px) {
+    html {
+        zoom: 0.8;
+    }
+}
+@supports not (zoom: 0.9) {
+    @media (min-width: 1025px) {
+        html {
+            transform: scale(0.8);
+            transform-origin: 0 0;
+            width: 125%;
+            min-height: 125vh;
+            margin-right: -25%;
+        }
+    }
+}
+::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+    display: none;
+}
+
 /* Background animado futurista */
 .background-animation {
     position: fixed;
@@ -155,7 +186,7 @@ body {
 .container {
     position: relative;
     z-index: 1;
-    max-width: 1400px;
+    max-width: 100%;
     margin: 0 auto;
     padding: 1rem 1.5rem;
     min-height: 100vh;
@@ -163,21 +194,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow-x: hidden;
-    overflow-y: auto;
-}
-
-/* Garantir que o grid não ultrapasse a altura da tela */
-@media (min-width: 769px) {
-    .container {
-        max-height: 100vh;
-        max-height: 100dvh;
-    }
-    
-    .aplicacoes-grid {
-        max-height: calc(100vh - 300px);
-        max-height: calc(100dvh - 300px);
-        overflow-y: auto;
-    }
+    overflow-y: visible;
 }
 
 /* Header Futurista */
@@ -256,102 +273,95 @@ header {
 .titulo-text {
     position: relative;
     display: inline-block;
-    background: linear-gradient(135deg, #00d4ff 0%, #00ffff 50%, #00d4ff 100%);
-    background-size: 200% 200%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    animation: gradientShift 3s ease infinite, titleClarity 5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-    text-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
-    filter: drop-shadow(0 1px 2px rgba(0, 212, 255, 0.2));
+    color: #00d4ff;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    transition: opacity 0.3s ease, text-shadow 0.3s ease, filter 0.3s ease;
 }
 
-@keyframes titleClarity {
-    0%, 8% {
-        text-shadow: 0 0 12px rgba(0, 212, 255, 0.35);
-        filter: drop-shadow(0 1px 2px rgba(0, 212, 255, 0.15));
-        -webkit-text-fill-color: transparent;
-        color: transparent;
-        opacity: 0.85;
-    }
-    12%, 18% {
-        text-shadow: 0 0 6px rgba(0, 212, 255, 0.2);
-        filter: drop-shadow(0 0.5px 1px rgba(0, 212, 255, 0.1));
-        -webkit-text-fill-color: transparent;
-        color: transparent;
-        opacity: 0.95;
-    }
-    20%, 30% {
-        text-shadow: none;
-        filter: none;
-        -webkit-text-fill-color: #00d4ff;
-        color: #00d4ff;
-        background: none;
-        opacity: 1;
-    }
-    32%, 38% {
-        text-shadow: 0 0 6px rgba(0, 212, 255, 0.2);
-        filter: drop-shadow(0 0.5px 1px rgba(0, 212, 255, 0.1));
-        -webkit-text-fill-color: transparent;
-        color: transparent;
-        opacity: 0.95;
-    }
-    40%, 100% {
-        text-shadow: 0 0 12px rgba(0, 212, 255, 0.35);
-        filter: drop-shadow(0 1px 2px rgba(0, 212, 255, 0.15));
-        -webkit-text-fill-color: transparent;
-        color: transparent;
-        opacity: 0.85;
-    }
-}
-
-@keyframes gradientShift {
-    0%, 100% {
-        background-position: 0% 50%;
-    }
-    50% {
-        background-position: 100% 50%;
-    }
-}
-
-.letter {
+/* MAESTRO: loop apagando e acendendo, letra por letra – animação sempre ativa no título */
+.titulo .letter {
     display: inline-block;
     position: relative;
+    color: #00d4ff;
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.85), 0 0 24px rgba(0, 212, 255, 0.55);
     transition: transform 0.3s ease;
-    animation: letterGlow 5s ease-in-out infinite;
+    animation: letterLoop 12s ease-in-out infinite;
+    -webkit-animation: letterLoop 12s ease-in-out infinite;
 }
 
-.letter:nth-child(1) { animation-delay: 0s; }
-.letter:nth-child(2) { animation-delay: 0.1s; }
-.letter:nth-child(3) { animation-delay: 0.2s; }
-.letter:nth-child(4) { animation-delay: 0.3s; }
-.letter:nth-child(5) { animation-delay: 0.4s; }
-.letter:nth-child(6) { animation-delay: 0.5s; }
-.letter:nth-child(7) { animation-delay: 0.6s; }
+.titulo .letter:nth-child(1) { animation-delay: 0s; -webkit-animation-delay: 0s; }
+.titulo .letter:nth-child(2) { animation-delay: 0.5s; -webkit-animation-delay: 0.5s; }
+.titulo .letter:nth-child(3) { animation-delay: 1s; -webkit-animation-delay: 1s; }
+.titulo .letter:nth-child(4) { animation-delay: 1.5s; -webkit-animation-delay: 1.5s; }
+.titulo .letter:nth-child(5) { animation-delay: 2s; -webkit-animation-delay: 2s; }
+.titulo .letter:nth-child(6) { animation-delay: 2.5s; -webkit-animation-delay: 2.5s; }
+.titulo .letter:nth-child(7) { animation-delay: 3s; -webkit-animation-delay: 3s; }
 
-@keyframes letterGlow {
-    0%, 8% {
-        text-shadow: 0 0 6px rgba(0, 212, 255, 0.25), 0 0 12px rgba(0, 212, 255, 0.15);
+/* Ciclo: acende letra a letra (0–5%), fica aceso (5–70%), apaga tudo (70–80%), pausa (80–100%) */
+@keyframes letterLoop {
+    0% {
+        opacity: 0;
+        text-shadow: 0 0 0 rgba(0, 212, 255, 0), 0 0 0 rgba(0, 212, 255, 0);
     }
-    12%, 18% {
-        text-shadow: 0 0 3px rgba(0, 212, 255, 0.15), 0 0 6px rgba(0, 212, 255, 0.1);
+    4% {
+        opacity: 0;
+        text-shadow: 0 0 0 rgba(0, 212, 255, 0), 0 0 0 rgba(0, 212, 255, 0);
     }
-    20%, 30% {
-        text-shadow: none;
+    5% {
+        opacity: 1;
+        text-shadow: 0 0 10px rgba(0, 212, 255, 0.85), 0 0 24px rgba(0, 212, 255, 0.55);
     }
-    32%, 38% {
-        text-shadow: 0 0 3px rgba(0, 212, 255, 0.15), 0 0 6px rgba(0, 212, 255, 0.1);
+    70% {
+        opacity: 1;
+        text-shadow: 0 0 14px rgba(0, 212, 255, 0.9), 0 0 36px rgba(0, 212, 255, 0.6);
     }
-    40%, 100% {
-        text-shadow: 0 0 6px rgba(0, 212, 255, 0.25), 0 0 12px rgba(0, 212, 255, 0.15);
+    80% {
+        opacity: 0;
+        text-shadow: 0 0 0 rgba(0, 212, 255, 0), 0 0 0 rgba(0, 212, 255, 0);
+    }
+    100% {
+        opacity: 0;
+        text-shadow: 0 0 0 rgba(0, 212, 255, 0), 0 0 0 rgba(0, 212, 255, 0);
+    }
+}
+
+@-webkit-keyframes letterLoop {
+    0% {
+        opacity: 0;
+        text-shadow: 0 0 0 rgba(0, 212, 255, 0), 0 0 0 rgba(0, 212, 255, 0);
+    }
+    4% {
+        opacity: 0;
+        text-shadow: 0 0 0 rgba(0, 212, 255, 0), 0 0 0 rgba(0, 212, 255, 0);
+    }
+    5% {
+        opacity: 1;
+        text-shadow: 0 0 10px rgba(0, 212, 255, 0.85), 0 0 24px rgba(0, 212, 255, 0.55);
+    }
+    70% {
+        opacity: 1;
+        text-shadow: 0 0 14px rgba(0, 212, 255, 0.9), 0 0 36px rgba(0, 212, 255, 0.6);
+    }
+    80% {
+        opacity: 0;
+        text-shadow: 0 0 0 rgba(0, 212, 255, 0), 0 0 0 rgba(0, 212, 255, 0);
+    }
+    100% {
+        opacity: 0;
+        text-shadow: 0 0 0 rgba(0, 212, 255, 0), 0 0 0 rgba(0, 212, 255, 0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .titulo-text .letter {
+        animation: none;
+        opacity: 1;
+        text-shadow: 0 0 12px rgba(0, 212, 255, 0.55);
     }
 }
 
 .titulo:hover .letter {
-    transform: translateY(-5px) scale(1.1);
+    transform: translateY(-4px) scale(1.05);
 }
 
 .titulo-glow {
@@ -586,7 +596,7 @@ main {
     display: flex;
     flex-direction: column;
     overflow-x: hidden;
-    overflow-y: auto;
+    overflow-y: visible;
     min-height: 0;
     padding: 0.5rem 0;
 }
@@ -656,16 +666,224 @@ main {
     height: 100%;
 }
 
-/* Em telas menores, ajustar layout */
-@media (max-width: 768px) {
+/* Em telas mobile (< 577px), ajustar layout */
+@media (max-width: 576px) {
     .aplicacoes-grid {
         grid-template-columns: repeat(2, 1fr);
     }
     
-    /* Em mobile, resetar posicionamento */
     .aplicacoes-grid .app-card:nth-child(n) {
         grid-column: span 1;
         grid-row: auto;
+    }
+}
+
+/* ========== Portal: seções Dashboards e Aplicações com "Ver todos" ========== */
+.portal-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+    overflow-x: hidden;
+    overflow-y: visible;
+    min-height: 0;
+    padding: 0.5rem 0 1.5rem;
+    animation: fadeIn 0.6s ease-out both;
+}
+
+.portal-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    scroll-margin-top: 1rem;
+}
+
+.section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0 0.25rem;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--branco-suave);
+    text-transform: uppercase;
+}
+
+.section-icon {
+    font-size: 1.25rem;
+    opacity: 0.95;
+}
+
+.section-title {
+    color: var(--azul-neon);
+    text-shadow: 0 0 12px rgba(0, 212, 255, 0.35);
+}
+
+.section-count {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #fff;
+    letter-spacing: 0.05em;
+}
+
+.section-cards,
+.section-more-inner {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1rem;
+    align-content: start;
+}
+
+/* Wrapper com área de hover fixa: o card “salta” dentro dele sem o cursor sair da área */
+.app-card-wrapper {
+    position: relative;
+    padding-top: 12px;
+    min-height: 212px;
+}
+.app-card-wrapper .app-card {
+    display: flex;
+    min-height: 200px;
+}
+
+.section-cards .app-card-wrapper,
+.section-more-inner .app-card-wrapper {
+    min-height: 212px;
+}
+.section-cards .app-card,
+.section-more-inner .app-card {
+    min-height: 200px;
+}
+
+.section-expand {
+    display: flex;
+    justify-content: center;
+    padding: 0.75rem 0 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.btn-ver-todos {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.5rem;
+    font-family: 'Rajdhani', 'Exo 2', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--azul-neon);
+    background: rgba(0, 212, 255, 0.08);
+    border: 1px solid rgba(0, 212, 255, 0.35);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: color 0.25s ease, background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+    box-shadow: 0 0 0 0 rgba(0, 212, 255, 0);
+}
+
+.btn-ver-todos:hover {
+    color: var(--branco);
+    background: rgba(0, 212, 255, 0.18);
+    border-color: rgba(0, 212, 255, 0.5);
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.25);
+    transform: translateY(-2px);
+}
+
+.btn-ver-todos:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.5);
+}
+
+.btn-chevron {
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    margin-bottom: 0.2rem;
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-ver-todos.is-expanded .btn-chevron {
+    transform: rotate(-135deg);
+    margin-bottom: -0.2rem;
+}
+
+.section-more {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.65s cubic-bezier(0.32, 0.72, 0.2, 1), opacity 0.5s ease 0.05s;
+}
+
+.section-more.is-expanded {
+    max-height: 3200px;
+    opacity: 1;
+    transition: max-height 0.7s cubic-bezier(0.32, 0.72, 0.2, 1), opacity 0.45s ease;
+}
+
+.section-more-inner {
+    padding-top: 0.75rem;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: opacity 0.4s ease 0.15s, transform 0.45s cubic-bezier(0.32, 0.72, 0.2, 1) 0.1s;
+}
+
+.section-more.is-expanded .section-more-inner {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.4s ease 0.1s, transform 0.4s cubic-bezier(0.32, 0.72, 0.2, 1);
+}
+
+/* Tablet / janela média: 3 colunas (evita layout mobile em MacBook/janela estreita) */
+@media (max-width: 1200px) {
+    .section-cards,
+    .section-more-inner {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Mobile de verdade: só em telas pequenas (< 577px) */
+@media (max-width: 576px) {
+    .portal-main {
+        gap: 2rem;
+    }
+    .section-header {
+        font-size: 1rem;
+    }
+    .section-cards,
+    .section-more-inner {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    .section-cards .app-card-wrapper,
+    .section-more-inner .app-card-wrapper {
+        min-height: 192px;
+    }
+    .section-cards .app-card,
+    .section-more-inner .app-card {
+        min-height: 180px;
+    }
+    .section-cards .app-card-wrapper:nth-child(odd):last-child,
+    .section-more-inner .app-card-wrapper:nth-child(odd):last-child {
+        grid-column: 1 / -1;
+        max-width: 100%;
+    }
+    .btn-ver-todos {
+        padding: 0.55rem 1.25rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* Entre 577px e 768px: mantém 3 colunas (não forçar 2 colunas em tablet) */
+@media (min-width: 577px) and (max-width: 768px) {
+    .section-cards,
+    .section-more-inner {
+        grid-template-columns: repeat(3, 1fr);
     }
 }
 
@@ -700,8 +918,6 @@ main {
     height: 100%;
     cursor: pointer;
     isolation: isolate;
-    will-change: transform;
-    transform: translateZ(0);
     backface-visibility: hidden;
     -webkit-font-smoothing: subpixel-antialiased;
     contain: layout style paint;
@@ -797,52 +1013,53 @@ main {
     border-top: none;
 }
 
-.app-card:hover {
+/* Hover no wrapper (área fixa): o card salta dentro do wrapper, sem tremor */
+.app-card-wrapper:hover .app-card {
     transform: translate3d(0, -8px, 0) scale(1.01);
     box-shadow: var(--shadow-xl), var(--shadow-glow), inset 0 0 30px rgba(0, 212, 255, 0.2);
     border-color: var(--card-accent, var(--azul-neon));
 }
 
-.app-card:hover::before {
+.app-card-wrapper:hover .app-card::before {
     opacity: 0.2;
 }
 
-.app-card:hover .card-background {
+.app-card-wrapper:hover .card-background {
     opacity: 1;
 }
 
-.app-card:hover .card-border-glow {
+.app-card-wrapper:hover .card-border-glow {
     opacity: 0.6;
 }
 
-.app-card:hover .card-shine {
+.app-card-wrapper:hover .card-shine {
     opacity: 1;
     transform: translate3d(0, 0, 0) rotate(45deg) translate(100%, 100%);
     will-change: transform, opacity;
 }
 
-.app-card:hover .card-corner {
+.app-card-wrapper:hover .card-corner {
     opacity: 1;
 }
 
-.app-card:hover .app-icon {
+.app-card-wrapper:hover .app-icon {
     transform: translateZ(0) scale(1.15) rotate(5deg);
     will-change: transform;
 }
 
-.app-card:hover .icon-glow {
+.app-card-wrapper:hover .icon-glow {
     opacity: 0.8;
     transform: translateZ(0) scale(1.4);
     will-change: transform, opacity;
 }
 
-.app-card:hover .icon-ring {
+.app-card-wrapper:hover .icon-ring {
     opacity: 1;
     transform: translateZ(0) scale(1.1) rotate(360deg);
     will-change: transform, opacity;
 }
 
-.app-card:hover .app-link {
+.app-card-wrapper:hover .app-link {
     transform: translate3d(4px, 0, 0);
     color: var(--card-accent, var(--azul-neon));
     will-change: transform;
@@ -906,6 +1123,17 @@ main {
     position: relative;
     z-index: 1;
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--card-accent, var(--azul-neon));
+}
+
+.app-icon .card-svg-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    flex-shrink: 0;
+    color: inherit;
 }
 
 .app-nome {
@@ -949,7 +1177,7 @@ main {
     margin-top: auto;
 }
 
-.app-card:hover .app-link {
+.app-card-wrapper:hover .app-link {
     opacity: 1;
     text-shadow: 0 0 10px currentColor;
 }
@@ -965,7 +1193,7 @@ main {
     filter: drop-shadow(0 0 5px currentColor);
 }
 
-.app-card:hover .link-arrow {
+.app-card-wrapper:hover .link-arrow {
     transform: translateX(4px);
 }
 
@@ -1055,8 +1283,8 @@ footer {
     }
 }
 
-/* Responsividade - Dispositivos grandes (Samsung S25, etc.) */
-@media (min-width: 430px) and (max-width: 768px) {
+/* Responsividade - Dispositivos grandes (Samsung S25, etc.) - só em mobile */
+@media (min-width: 430px) and (max-width: 576px) {
     html, body {
         overflow-x: hidden;
         overflow-y: auto;
@@ -1176,8 +1404,8 @@ footer {
     }
 }
 
-/* Responsividade - Mobile */
-@media (max-width: 768px) {
+/* Responsividade - Mobile (só telas < 577px; desktop/tablet mantêm layout normal) */
+@media (max-width: 576px) {
     html, body {
         overflow-x: hidden;
         overflow-y: auto;
@@ -1237,7 +1465,6 @@ footer {
         align-content: start;
     }
     
-    /* Em mobile, todos os cards ocupam 1 coluna */
     .aplicacoes-grid .app-card:nth-child(n) {
         grid-column: span 1;
     }
