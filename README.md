@@ -399,6 +399,9 @@ Maestro/
 │   ├── CONFIGURAR_DNS_HTTPS.md
 │   └── ...
 │
+├── scripts/                    # Scripts de manutenção
+│   └── renovar-certificado.sh  # Renovação SSL (cron)
+│
 ├── logs/                       # Logs da aplicação
 │   └── nginx/
 │
@@ -553,6 +556,25 @@ Após alterar código:
 
 Veja: `docs/CONFIGURAR_DNS_HTTPS.md`
 
+### Incidente: Certificado SSL expirado (ERR_CERT_DATE_INVALID) — Fev/2026
+
+**Sintoma:** Navegador exibe "Sua conexão não é particular", `NET::ERR_CERT_DATE_INVALID`, e o site usa HSTS (não permite ignorar o aviso).
+
+**Causa:** Certificado Let's Encrypt expirado ou com data inválida. O Let's Encrypt emite certificados com validade de 90 dias; sem renovação automática o certificado vence.
+
+**O que foi feito:**
+
+1. **Renovar/obter novo certificado:** No servidor, com containers rodando e porta 80 acessível:
+   ```bash
+   ./deploy-linux.sh --setup-ssl
+   ```
+
+2. **Correção no Nginx para validação ACME:** O Let's Encrypt valida o domínio via HTTP em `/.well-known/acme-challenge/`. O Nginx estava redirecionando **todo** o tráfego da porta 80 para HTTPS antes de servir esse path, então o Certbot recebia 404. Foi adicionada no `config/nginx/nginx.conf` uma `location /.well-known/acme-challenge/` no bloco da porta 80, servindo de `/var/www/certbot`, **antes** do redirect para HTTPS.
+
+3. **Renovação automática:** Configurado cron para rodar todo dia às 03:00 o script `scripts/renovar-certificado.sh`, que executa `certbot renew` (renova quando faltar ~30 dias para vencer) e reinicia o Nginx. Log em `logs/certbot-renewal.log`.
+
+**Documentação:** `docs/RENOVACAO_SSL_AUTOMATICA.md`
+
 ### Problema: Container demora para subir
 
 **Causa:** `--full-deploy` faz rebuild completo (instala `gcc`, etc.)
@@ -567,6 +589,7 @@ Veja: `docs/CONFIGURAR_DNS_HTTPS.md`
 - **[CONFIGURAR_FORTINET.md](docs/CONFIGURAR_FORTINET.md)** - Configuração do firewall
 - **[CONFIGURACAO_PORTAS.md](docs/CONFIGURACAO_PORTAS.md)** - Detalhes sobre portas
 - **[CONFIGURAR_DNS_HTTPS.md](docs/CONFIGURAR_DNS_HTTPS.md)** - Configuração de DNS e SSL
+- **[RENOVACAO_SSL_AUTOMATICA.md](docs/RENOVACAO_SSL_AUTOMATICA.md)** - Renovação automática do certificado Let's Encrypt (cron)
 - **[ESTRUTURA_PROJETO.md](docs/ESTRUTURA_PROJETO.md)** - Estrutura detalhada do projeto
 - **[GUIA_RAPIDO.md](docs/GUIA_RAPIDO.md)** - Guia rápido de início
 

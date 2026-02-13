@@ -14,7 +14,8 @@
 #   --status        Mostra status dos containers
 #   --logs          Mostra logs dos containers
 #   --full-deploy   Deploy completo: para, reconstrói e inicia tudo (Flask + Nginx + SSL)
-#   --setup-ssl     Configura SSL/HTTPS com Let's Encrypt
+#   --setup-ssl     Configura/obtém certificado SSL (Let's Encrypt) - use para gerar novo cert
+#   --renew-ssl     Renova certificado se estiver perto do vencimento (igual ao cron)
 #   --check-ports   Verifica configuração de portas no firewall
 
 set -e
@@ -809,7 +810,33 @@ setup_ssl() {
     echo ""
     info "📝 Próximo passo: Configure renovação automática:"
     info "   crontab -e"
-    info "   Adicione: 0 3 * * * $(pwd)/scripts/renovar-certificado.sh"
+    info "   Adicione: 0 3 * * * cd $(pwd) && ./scripts/renovar-certificado.sh"
+}
+
+# Renovar certificado SSL (sem forçar - só renova se perto do vencimento)
+renew_ssl() {
+    log "Renovando certificado SSL (se necessário)..."
+    check_docker
+    check_docker_compose
+    if [ ! -f "certbot/conf/live/$DOMAIN/fullchain.pem" ]; then
+        error "Certificado não encontrado. Use primeiro: $0 --setup-ssl"
+        exit 1
+    fi
+    if ! $COMPOSE_CMD -f "$COMPOSE_FILE" ps | grep -q "Up"; then
+        error "Containers não estão rodando. Inicie com: $0 --start"
+        exit 1
+    fi
+    docker run --rm \
+        -v "$(pwd)/certbot/conf:/etc/letsencrypt" \
+        -v "$(pwd)/certbot/www:/var/www/certbot" \
+        --network maestro_maestro-network \
+        certbot/certbot renew \
+        --webroot \
+        --webroot-path=/var/www/certbot \
+        -q
+    log "Reiniciando Nginx..."
+    $COMPOSE_CMD -f "$COMPOSE_FILE" restart nginx
+    success "Renovação concluída."
 }
 
 # Deploy completo
@@ -915,7 +942,8 @@ show_help() {
     echo "  --logs          Mostra logs dos containers"
     echo "  --full-deploy   Deploy completo: para, reconstrói e inicia tudo"
     echo "  --quick-restart Reinicia containers sem rebuild (rápido para alterações no código)"
-    echo "  --setup-ssl     Configura SSL/HTTPS com Let's Encrypt"
+    echo "  --setup-ssl     Obtém/renova certificado SSL (Let's Encrypt) - use para gerar novo cert"
+    echo "  --renew-ssl     Renova certificado se perto do vencimento (como o cron)"
     echo "  --check-ports   Verifica configuração de portas no firewall"
     echo "  --check-deps    Verifica dependências de segurança"
     echo "  --info          Mostra informações do sistema"
@@ -925,7 +953,8 @@ show_help() {
     echo "  $0 --full-deploy    # Deploy completo com rebuild (Flask + Nginx)"
     echo "  $0 --quick-restart  # Reinicia sem rebuild (rápido para alterações no código)"
     echo "  $0 --restart        # Reinicia containers (sem rebuild)"
-    echo "  $0 --setup-ssl      # Configurar HTTPS após deploy"
+    echo "  $0 --setup-ssl      # Obter/forçar novo certificado SSL (resolve ERR_CERT_DATE_INVALID)"
+    echo "  $0 --renew-ssl      # Renovar certificado (se perto do vencimento)"
     echo "  $0 --start          # Iniciar containers"
     echo "  $0 --status         # Ver status"
     echo "  $0 --logs           # Ver logs"
@@ -1019,6 +1048,9 @@ case "${1:-}" in
         ;;
     --setup-ssl)
         setup_ssl
+        ;;
+    --renew-ssl)
+        renew_ssl
         ;;
     --check-ports)
         check_ports_only
